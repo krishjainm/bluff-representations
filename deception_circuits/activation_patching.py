@@ -33,6 +33,9 @@ from typing import Dict, List, Tuple, Optional, Union, Any, Callable
 import numpy as np
 from pathlib import Path
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ActivationPatcher:
@@ -473,6 +476,90 @@ class CausalTester:
                     'patched_reconstruction_error': F.mse_loss(patched_activations[:, layer_idx, :], patched_reconstructed).item()
                 }
                 
+        return results
+    
+    def run_comprehensive_cross_context_test(self,
+                                           scenario_activations: Dict[str, torch.Tensor],
+                                           scenario_labels: Dict[str, torch.Tensor],
+                                           layer_indices: Optional[List[int]] = None,
+                                           probe: Optional[nn.Module] = None) -> Dict:
+        """
+        Run comprehensive cross-context patching tests.
+        
+        Tests patching between all pairs of scenarios to see if deception
+        circuits generalize. This implements the proposal requirement:
+        "Patch deception circuits from poker into sandbagging → does the lie transfer?"
+        
+        Args:
+            scenario_activations: Dictionary mapping scenario names to activations
+            scenario_labels: Dictionary mapping scenario names to labels
+            layer_indices: Which layers to test (None = all)
+            probe: Trained probe for evaluation
+            
+        Returns:
+            Comprehensive cross-context test results
+        """
+        scenario_names = list(scenario_activations.keys())
+        results = {
+            'cross_context_patches': {},
+            'generalization_summary': {}
+        }
+        
+        if layer_indices is None:
+            # Use all layers
+            num_layers = scenario_activations[scenario_names[0]].shape[1]
+            layer_indices = list(range(num_layers))
+        
+        # Test all pairs of scenarios
+        for i, scenario1 in enumerate(scenario_names):
+            for scenario2 in scenario_names[i+1:]:
+                patch_key = f"{scenario1}_to_{scenario2}"
+                
+                scenario1_acts = scenario_activations[scenario1]
+                scenario2_acts = scenario_activations[scenario2]
+                scenario1_labs = scenario_labels[scenario1]
+                scenario2_labs = scenario_labels[scenario2]
+                
+                patch_results = {}
+                
+                # Test patching at each layer
+                for layer_idx in layer_indices:
+                    layer_results = self.test_cross_context_patching(
+                        scenario1_acts, scenario2_acts,
+                        scenario1_labs, scenario2_labs,
+                        layer_idx, probe
+                    )
+                    patch_results[f'layer_{layer_idx}'] = layer_results
+                
+                # Compute generalization score
+                generalization_scores = []
+                for layer_key, layer_data in patch_results.items():
+                    if 'probe_evaluation' in layer_data:
+                        # Higher prediction change = better generalization
+                        pred_change = abs(layer_data['probe_evaluation'].get('prediction_change', 0.0))
+                        generalization_scores.append(pred_change)
+                
+                avg_generalization = np.mean(generalization_scores) if generalization_scores else 0.0
+                
+                results['cross_context_patches'][patch_key] = {
+                    'layer_results': patch_results,
+                    'generalization_score': avg_generalization,
+                    'generalizes': avg_generalization > 0.1  # Threshold for generalization
+                }
+        
+        # Summary statistics
+        all_scores = [data['generalization_score'] 
+                     for data in results['cross_context_patches'].values()]
+        results['generalization_summary'] = {
+            'avg_generalization_score': np.mean(all_scores) if all_scores else 0.0,
+            'num_generalizing_pairs': sum(1 for data in results['cross_context_patches'].values() 
+                                         if data['generalizes']),
+            'total_pairs': len(results['cross_context_patches']),
+            'generalization_rate': sum(1 for data in results['cross_context_patches'].values() 
+                                      if data['generalizes']) / len(results['cross_context_patches']) 
+                                      if results['cross_context_patches'] else 0.0
+        }
+        
         return results
         
     def test_steering_intervention(self, activations: torch.Tensor,

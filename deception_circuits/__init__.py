@@ -112,6 +112,30 @@ from .production import (
     create_dockerfile, create_docker_compose
 )
 
+# Import new research modules
+from .reasoning_traces import (
+    ReasoningTraceCollector, ReasoningTrace, ReasoningStep
+)
+from .dataset_integrations import (
+    GSM8KIntegration, TruthfulQAIntegration, MMLUIntegration,
+    DatasetIntegrationPipeline
+)
+from .baseline_comparisons import (
+    RLHFComparison, ModelSizeComparison, BaselineComparisonPipeline,
+    ModelComparisonConfig
+)
+from .advanced_metrics import (
+    WinRateCalculator, LatencyTracker, UncertaintyAnalyzer,
+    ContradictionAnalyzer, AdvancedMetricsCollector, ResponseMetrics
+)
+from .enhanced_scenarios import (
+    PokerBadHandBluffing, PasswordLocking, EnhancedSandbagging, PokerHand
+)
+from .game_data_loaders import (
+    MafiaDataLoader, BullshitDataLoader, PokerGameDataLoader,
+    MafiaGameData, BullshitGameData, PokerGameData
+)
+
 # Define what gets imported when someone does "from deception_circuits import *"
 __all__ = [
     # Core Framework
@@ -159,4 +183,32 @@ __all__ = [
     "create_production_config", # Create production configuration
     "create_dockerfile",        # Create Dockerfile
     "create_docker_compose",    # Create Docker Compose file
+    # New Research Modules
+    "ReasoningTraceCollector",  # Multi-step reasoning trace collection
+    "ReasoningTrace",           # Reasoning trace data structure
+    "ReasoningStep",            # Single reasoning step
+    "GSM8KIntegration",         # GSM8K dataset integration
+    "TruthfulQAIntegration",    # TruthfulQA dataset integration
+    "MMLUIntegration",         # MMLU dataset integration
+    "DatasetIntegrationPipeline", # Complete dataset integration
+    "RLHFComparison",          # RLHF alignment comparison
+    "ModelSizeComparison",     # Model size comparison
+    "BaselineComparisonPipeline", # Baseline comparison pipeline
+    "ModelComparisonConfig",   # Model comparison configuration
+    "WinRateCalculator",       # Win rate calculation for games
+    "LatencyTracker",          # Response latency tracking
+    "UncertaintyAnalyzer",     # Token-level uncertainty analysis
+    "ContradictionAnalyzer",   # Contradiction tracking
+    "AdvancedMetricsCollector", # Complete metrics collector
+    "ResponseMetrics",         # Response metrics data structure
+    "PokerBadHandBluffing",    # Poker bad hand bluffing scenario
+    "PasswordLocking",         # Password-locking mechanism
+    "EnhancedSandbagging",     # Enhanced sandbagging scenarios
+    "PokerHand",               # Poker hand data structure
+    "MafiaDataLoader",         # Mafia game data loader
+    "BullshitDataLoader",      # Bullshit game data loader
+    "PokerGameDataLoader",     # Poker game data loader
+    "MafiaGameData",           # Mafia game data structure
+    "BullshitGameData",        # Bullshit game data structure
+    "PokerGameData",           # Poker game data structure
 ]
