@@ -27,7 +27,8 @@ from plotly.subplots import make_subplots
 from pathlib import Path
 import json
 import logging
-from sklearn.decomposition import PCA, TSNE
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.manifold import MDS
 from sklearn.metrics import pairwise_distances
 import networkx as nx
@@ -747,9 +748,9 @@ class InterpretabilitySuite:
                                     model: Optional[nn.Module],
                                     activations: torch.Tensor,
                                     labels: torch.Tensor,
+                                    output_dir: Union[str, Path],
                                     tokens: Optional[List[str]] = None,
                                     attention_weights: Optional[Dict] = None,
-                                    output_dir: Union[str, Path],
                                     probe: Optional[nn.Module] = None) -> Dict:
         """
         Generate comprehensive interpretability report.

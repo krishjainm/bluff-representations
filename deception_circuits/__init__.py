@@ -87,6 +87,7 @@ from .linear_probe import DeceptionLinearProbe, LinearProbeTrainer
 from .sparse_autoencoder import DeceptionSparseAutoencoder, AutoencoderTrainer
 from .activation_patching import ActivationPatcher, CausalTester
 from .analysis import CircuitAnalyzer, VisualizationTools
+from .paper_visualizations import PaperVisualizationSystem
 from .training_pipeline import DeceptionTrainingPipeline
 
 # Import new production-ready modules
@@ -118,7 +119,7 @@ from .reasoning_traces import (
 )
 from .dataset_integrations import (
     GSM8KIntegration, TruthfulQAIntegration, MMLUIntegration,
-    DatasetIntegrationPipeline
+    PokerBenchIntegration, DatasetIntegrationPipeline
 )
 from .baseline_comparisons import (
     RLHFComparison, ModelSizeComparison, BaselineComparisonPipeline,
@@ -148,6 +149,7 @@ __all__ = [
     "CausalTester",             # Comprehensive causal testing framework
     "CircuitAnalyzer",          # Analyzes results and identifies circuits
     "VisualizationTools",       # Creates plots and dashboards
+    "PaperVisualizationSystem", # Publication-ready paper visualizations
     "DeceptionTrainingPipeline", # Main orchestration class
     
     # Real Model Integration
@@ -190,6 +192,7 @@ __all__ = [
     "GSM8KIntegration",         # GSM8K dataset integration
     "TruthfulQAIntegration",    # TruthfulQA dataset integration
     "MMLUIntegration",         # MMLU dataset integration
+    "PokerBenchIntegration",   # PokerBench dataset integration (RZ412/PokerBench)
     "DatasetIntegrationPipeline", # Complete dataset integration
     "RLHFComparison",          # RLHF alignment comparison
     "ModelSizeComparison",     # Model size comparison

@@ -534,8 +534,22 @@ class MultiLayerIntervention:
                 # Apply attention patching
                 if truthful_activations is not None and deceptive_activations is not None:
                     patcher = AttentionPatcher(self.device)
-                    # This would need model-specific implementation
-                    pass
+                    # Apply attention patching by replacing deceptive patterns with truthful ones
+                    # For each specified layer, blend activations based on patch strength
+                    for layer_idx in config.layer_indices:
+                        if layer_idx < intervened_activations.shape[1]:
+                            # Extract truthful and deceptive patterns for this layer
+                            truth_layer = truthful_activations[:, layer_idx, :].mean(dim=0, keepdim=True)
+                            deceptive_layer = deceptive_activations[:, layer_idx, :].mean(dim=0, keepdim=True)
+                            
+                            # Apply patch: replace deceptive pattern with truthful pattern
+                            original_layer = intervened_activations[:, layer_idx, :]
+                            # Blend based on patch strength
+                            patched_layer = (
+                                config.strength * truth_layer + 
+                                (1 - config.strength) * original_layer
+                            )
+                            intervened_activations[:, layer_idx, :] = patched_layer.squeeze(0)
                     
             elif config.intervention_type == 'steering':
                 # Apply steering intervention
@@ -551,8 +565,23 @@ class MultiLayerIntervention:
                             
             elif config.intervention_type == 'gradient':
                 # Apply gradient-based intervention
-                # This would need gradient computation
-                pass
+                # Compute gradients using activation differences as proxy
+                if truthful_activations is not None and deceptive_activations is not None:
+                    # Compute gradient-like signal as difference between truthful and deceptive
+                    for layer_idx in config.layer_indices:
+                        if layer_idx < intervened_activations.shape[1]:
+                            truth_mean = truthful_activations[:, layer_idx, :].mean(dim=0, keepdim=True)
+                            deceptive_mean = deceptive_activations[:, layer_idx, :].mean(dim=0, keepdim=True)
+                            # Gradient-like direction pointing from deceptive to truthful
+                            gradient_direction = truth_mean - deceptive_mean
+                            # Normalize
+                            grad_norm = gradient_direction.norm()
+                            if grad_norm > 1e-8:
+                                gradient_direction = gradient_direction / grad_norm
+                            # Apply intervention
+                            intervened_activations[:, layer_idx, :] += (
+                                config.strength * gradient_direction.squeeze(0)
+                            )
                 
             elif config.intervention_type == 'multi_layer':
                 # Apply coordinated multi-layer intervention
@@ -569,13 +598,22 @@ class MultiLayerIntervention:
         intervened = activations.clone()
         
         # Example: Apply progressive intervention across layers
+        # Progressive strength based on layer position (stronger in later layers)
         for i, layer_idx in enumerate(config.layer_indices):
-            # Progressive strength based on layer position
-            progressive_strength = config.strength * (i + 1) / len(config.layer_indices)
-            
-            # Apply intervention to this layer
-            # This is a placeholder - actual implementation would depend on intervention type
-            pass
+            if layer_idx < intervened.shape[1]:
+                # Progressive strength based on layer position
+                progressive_strength = config.strength * (i + 1) / len(config.layer_indices)
+                
+                # Apply intervention to this layer based on intervention type
+                # Default: additive intervention (can be customized)
+                if hasattr(config, 'intervention_method') and config.intervention_method == 'multiplicative':
+                    # Multiplicative scaling
+                    intervened[:, layer_idx, :] *= (1 + progressive_strength)
+                else:
+                    # Additive intervention (default)
+                    # Use layer mean as reference for intervention direction
+                    layer_mean = intervened[:, layer_idx, :].mean(dim=0, keepdim=True)
+                    intervened[:, layer_idx, :] += progressive_strength * layer_mean.squeeze(0)
         
         return intervened
 
@@ -711,10 +749,14 @@ class AdvancedCausalTester:
         # Analyze steering effectiveness
         for layer, data in results['steering_vector_analysis'].items():
             effectiveness = data['effectiveness']
-            max_change = max([
-                abs(eff['positive_change']) + abs(eff['negative_change'])
-                for eff in effectiveness.values()
-            ])
+            if effectiveness:
+                changes = [
+                    abs(eff['positive_change']) + abs(eff['negative_change'])
+                    for eff in effectiveness.values()
+                ]
+                max_change = max(changes) if changes else 0.0
+            else:
+                max_change = 0.0
             summary['steering_effectiveness'][layer] = {
                 'max_effect': max_change,
                 'effective': max_change > 0.1

@@ -257,8 +257,16 @@ class DeceptionTrainingPipeline:
             )
         
         # Compile final results
+        # Prepare data_info without DataFrame (to avoid serialization issues)
+        data_info_serializable = {k: v for k, v in data_results.items() if k != 'dataframe'}
+        data_info_serializable['dataframe_info'] = {
+            'shape': df.shape,
+            'columns': df.columns.tolist(),
+            'num_samples': len(df)
+        }
+        
         final_results = {
-            'data_info': data_results,
+            'data_info': data_info_serializable,
             'train_test_split': {
                 'train_samples': train_data['num_samples'],
                 'test_samples': test_data['num_samples']
@@ -590,14 +598,30 @@ class DeceptionTrainingPipeline:
         """Convert torch tensors and other non-serializable objects to JSON-serializable format."""
         if isinstance(obj, torch.Tensor):
             return obj.cpu().numpy().tolist()
+        elif isinstance(obj, torch.nn.Module):
+            # Skip nn.Module objects - they're saved separately as checkpoints
+            return f"<nn.Module: {type(obj).__name__}>"
         elif isinstance(obj, dict):
             return {k: self._make_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, list):
+        elif isinstance(obj, (list, tuple)):
             return [self._make_serializable(item) for item in obj]
         elif isinstance(obj, np.ndarray):
             return obj.tolist()
-        else:
+        elif isinstance(obj, (int, float, str, bool)) or obj is None:
             return obj
+        else:
+            # Check for pandas DataFrame
+            try:
+                import pandas as pd
+                if isinstance(obj, pd.DataFrame):
+                    return obj.to_dict('records')
+            except ImportError:
+                pass
+            # For other unknown types, try to convert to string representation
+            try:
+                return str(obj)
+            except:
+                return f"<non-serializable: {type(obj).__name__}>"
             
     def load_results(self, results_dir: Union[str, Path]) -> Dict:
         """Load previously saved results."""
@@ -627,3 +651,95 @@ class DeceptionTrainingPipeline:
             probe_config={'epochs': 10},
             autoencoder_config={'epochs': 10}
         )
+    
+    def run_experiment_with_reasoning_traces(self,
+                                            traces_path: Union[str, Path],
+                                            activations_dir: Optional[Union[str, Path]] = None,
+                                            use_final_step: bool = True,
+                                            probe_config: Optional[Dict] = None,
+                                            autoencoder_config: Optional[Dict] = None,
+                                            save_results: bool = True) -> Dict:
+        """
+        Run deception circuit experiment using reasoning traces.
+        
+        This method integrates reasoning traces into the training pipeline by:
+        1. Loading reasoning traces from disk
+        2. Converting traces to activation tensors and DataFrame format
+        3. Running the standard training pipeline
+        
+        Args:
+            traces_path: Path to saved reasoning traces JSON file
+            activations_dir: Directory containing activation files (if separate)
+            use_final_step: If True, use final step activations; if False, average all steps
+            probe_config: Configuration for linear probes
+            autoencoder_config: Configuration for autoencoders
+            save_results: Whether to save results to disk
+            
+        Returns:
+            Dictionary with complete experiment results
+        """
+        from .reasoning_traces import ReasoningTraceCollector
+        
+        print("Loading reasoning traces...")
+        collector = ReasoningTraceCollector(model=None, tokenizer=None, device=self.device)
+        collector.load_traces(traces_path, activations_dir)
+        
+        if len(collector.traces) == 0:
+            raise ValueError(f"No traces found in {traces_path}")
+        
+        print(f"Loaded {len(collector.traces)} reasoning traces")
+        
+        # Convert traces to DataFrame
+        print("Converting traces to DataFrame format...")
+        df = collector.convert_traces_to_dataframe()
+        
+        # Convert traces to activations
+        print("Converting traces to activation tensors...")
+        activations, labels = collector.convert_traces_to_activations(use_final_step=use_final_step)
+        
+        # Save temporary CSV for compatibility with existing pipeline
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+            temp_csv = f.name
+            df.to_csv(temp_csv, index=False)
+        
+        # Save activations temporarily
+        import tempfile as tf
+        temp_act_dir = tf.mkdtemp()
+        from pathlib import Path
+        act_dir_path = Path(temp_act_dir)
+        act_dir_path.mkdir(exist_ok=True)
+        
+        # Save activations in expected format
+        for i in range(len(activations)):
+            torch.save(activations[i], act_dir_path / f"activations_{i}.pt")
+        
+        try:
+            # Run standard experiment with the converted data
+            results = self.run_full_experiment(
+                csv_path=temp_csv,
+                activation_dir=temp_act_dir,
+                probe_config=probe_config,
+                autoencoder_config=autoencoder_config,
+                save_results=save_results
+            )
+            
+            # Add reasoning trace metadata
+            results['reasoning_trace_metadata'] = {
+                'num_traces': len(collector.traces),
+                'traces_path': str(traces_path),
+                'use_final_step': use_final_step,
+                'average_steps_per_trace': sum(len(trace.steps) for trace in collector.traces) / len(collector.traces)
+            }
+            
+            return results
+            
+        finally:
+            # Cleanup temporary files
+            import os
+            try:
+                os.unlink(temp_csv)
+                import shutil
+                shutil.rmtree(temp_act_dir)
+            except:
+                pass

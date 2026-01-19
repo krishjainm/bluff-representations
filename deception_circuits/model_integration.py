@@ -109,6 +109,30 @@ class GPT4oIntegration:
                             'label': 0  # Will be expanded to include both labels
                         })
                         
+                    except openai.APIError as e:
+                        error_msg = str(e)
+                        if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                            logger.warning(f"Rate limit exceeded. Waiting {self.config.rate_limit_delay * 2}s...")
+                            time.sleep(self.config.rate_limit_delay * 2)
+                            continue
+                        elif "invalid_api_key" in error_msg.lower() or "401" in error_msg:
+                            logger.error(f"Invalid OpenAI API key. Check your API key.")
+                            raise ValueError("Invalid OpenAI API key") from e
+                        else:
+                            logger.warning(f"API error generating pair for '{statement}': {e}")
+                            continue
+                    except openai.APIError as e:
+                        error_msg = str(e)
+                        if "rate_limit" in error_msg.lower() or "429" in error_msg:
+                            logger.warning(f"Rate limit exceeded. Waiting {self.config.rate_limit_delay * 2}s...")
+                            time.sleep(self.config.rate_limit_delay * 2)
+                            continue
+                        elif "invalid_api_key" in error_msg.lower() or "401" in error_msg:
+                            logger.error(f"Invalid OpenAI API key. Check your API key.")
+                            raise ValueError("Invalid OpenAI API key") from e
+                        else:
+                            logger.warning(f"API error generating pair for '{statement}': {e}")
+                            continue
                     except Exception as e:
                         logger.warning(f"Failed to generate pair for '{statement}' in scenario '{scenario}': {e}")
                         continue
@@ -333,29 +357,80 @@ class ActivationExtractor:
         self.hooks = []
         
     def load_model(self):
-        """Load the model and tokenizer."""
+        """Load the model and tokenizer with comprehensive error handling."""
+        if self.model is not None:
+            logger.warning("Model already loaded. Skipping reload.")
+            return
+        
         try:
             logger.info(f"Loading model: {self.model_name}")
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-            self.model = AutoModel.from_pretrained(self.model_name)
-            self.model.to(self.device)
+            
+            # Check if model name is valid
+            if not self.model_name or len(self.model_name.strip()) == 0:
+                raise ValueError("Model name cannot be empty")
+            
+            # Load tokenizer with error handling
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            except Exception as e:
+                logger.error(f"Failed to load tokenizer for {self.model_name}: {e}")
+                logger.info("Try checking if the model name is correct or if you need to authenticate")
+                raise ValueError(f"Tokenizer loading failed: {e}") from e
+            
+            # Load model with error handling
+            try:
+                self.model = AutoModel.from_pretrained(self.model_name)
+            except OSError as e:
+                if "401" in str(e) or "Unauthorized" in str(e):
+                    logger.error(f"Authentication failed for model {self.model_name}")
+                    logger.info("You may need to login with: huggingface-cli login")
+                    raise ValueError(f"Model authentication failed: {e}") from e
+                elif "404" in str(e) or "not found" in str(e).lower():
+                    logger.error(f"Model {self.model_name} not found")
+                    logger.info("Check that the model name is correct and available on HuggingFace")
+                    raise ValueError(f"Model not found: {e}") from e
+                else:
+                    raise
+            except Exception as e:
+                logger.error(f"Unexpected error loading model: {e}")
+                raise ValueError(f"Model loading failed: {e}") from e
+            
+            # Move to device with error handling
+            try:
+                self.model.to(self.device)
+            except RuntimeError as e:
+                if "CUDA" in str(e) and self.device == "cuda":
+                    logger.warning(f"CUDA not available, falling back to CPU")
+                    self.device = "cpu"
+                    self.model.to(self.device)
+                else:
+                    raise
+            
             self.model.eval()
             
             # Add padding token if not present
             if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
+                if self.tokenizer.eos_token is not None:
+                    self.tokenizer.pad_token = self.tokenizer.eos_token
+                elif self.tokenizer.unk_token is not None:
+                    self.tokenizer.pad_token = self.tokenizer.unk_token
+                else:
+                    logger.warning("No suitable token found for padding token")
                 
-            logger.info("Model loaded successfully")
+            logger.info(f"Model loaded successfully on {self.device}")
             
         except Exception as e:
             logger.error(f"Error loading model: {e}")
+            # Clean up partial state
+            self.model = None
+            self.tokenizer = None
             raise
     
     def extract_activations(self, 
                           texts: List[str],
                           layer_indices: Optional[List[int]] = None) -> torch.Tensor:
         """
-        Extract activations for given texts.
+        Extract activations for given texts with error handling.
         
         Args:
             texts: List of input texts
@@ -363,9 +438,19 @@ class ActivationExtractor:
             
         Returns:
             Tensor of shape [batch_size, num_layers, hidden_dim]
+            
+        Raises:
+            ValueError: If texts is empty or model failed to load
+            RuntimeError: If activation extraction fails
         """
+        if not texts or len(texts) == 0:
+            raise ValueError("Cannot extract activations from empty text list")
+        
         if self.model is None:
-            self.load_model()
+            try:
+                self.load_model()
+            except Exception as e:
+                raise RuntimeError(f"Failed to load model for activation extraction: {e}") from e
         
         # Tokenize inputs
         inputs = self.tokenizer(

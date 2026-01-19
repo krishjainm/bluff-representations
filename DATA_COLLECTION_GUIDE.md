@@ -157,9 +157,11 @@ The framework is now **~95% complete**. The remaining work involves collecting a
 
 ## 📊 Standard Dataset Integration
 
-### GSM8K, TruthfulQA, MMLU
+### GSM8K, TruthfulQA, MMLU, PokerBench
 
 These datasets are automatically downloaded via HuggingFace. No manual collection needed!
+
+**Note on PokerBench**: The PokerBench dataset (RZ412/PokerBench) is integrated. If it's not available on HuggingFace or requires special access, the framework will gracefully fall back and suggest using synthetic poker scenarios via `PokerBadHandBluffing`.
 
 **Usage:**
 ```python
@@ -172,7 +174,8 @@ stats = pipeline.create_complete_dataset(
     gsm8k_examples=100,
     truthfulqa_examples=100,
     mmlu_subsets=["high_school_mathematics", "history", "astronomy"],
-    mmlu_examples_per_subset=50
+    mmlu_examples_per_subset=50,
+    pokerbench_examples=100  # Add PokerBench poker scenarios
 )
 ```
 
@@ -182,6 +185,38 @@ pip install datasets
 ```
 
 The datasets will be automatically downloaded on first use.
+
+### PokerBench Dataset (RZ412/PokerBench)
+
+**PokerBench** is now fully integrated! This dataset contains over 570,000 poker scenarios with optimal decisions.
+
+**Usage:**
+```python
+from deception_circuits import PokerBenchIntegration
+
+# Create PokerBench integration
+pokerbench = PokerBenchIntegration()
+
+# Load dataset (automatically downloaded from HuggingFace)
+pokerbench.load_dataset(split="train")
+
+# Create paired optimal vs bluffing scenarios
+scenarios = pokerbench.create_bluffing_scenarios(
+    num_examples=100,
+    filter_weak_hands=True,  # Focus on weak hands suitable for bluffing
+    hand_strength_threshold=0.3
+)
+
+# Or use in complete pipeline
+from deception_circuits import DatasetIntegrationPipeline
+pipeline = DatasetIntegrationPipeline()
+stats = pipeline.create_complete_dataset(
+    output_path="dataset.csv",
+    pokerbench_examples=100  # Includes paired optimal/bluffing scenarios
+)
+```
+
+**Note**: If PokerBench dataset is not available on HuggingFace or requires special access, the framework will gracefully fail and suggest using synthetic poker scenarios via `PokerBadHandBluffing` instead.
 
 ## 🤖 Model Access Setup
 

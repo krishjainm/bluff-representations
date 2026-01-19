@@ -9,19 +9,22 @@ and analyzing deception circuits in LLM reasoning traces.
 This is your COMPLETE GUIDE to using the deception circuits framework!
 This script shows you exactly how to:
 
-1. **SET UP DATA**: Create sample datasets with truthful vs deceptive examples
+1. **SET UP DATA**: Create sample datasets or use integrated datasets (GSM8K, TruthfulQA, MMLU, PokerBench)
 2. **RUN EXPERIMENTS**: Use the training pipeline to discover deception circuits
 3. **ANALYZE RESULTS**: Understand which layers and features matter most
 4. **VISUALIZE FINDINGS**: Create plots and dashboards of your results
-5. **TEST CAUSALITY**: Run causal intervention experiments
+5. **TEST CAUSALITY**: Run causal intervention experiments (basic and advanced)
+6. **USE REASONING TRACES**: Collect and analyze multi-step reasoning traces
 
 === WHAT THIS SCRIPT DOES ===
 
 - Creates realistic sample data for different deception scenarios (poker, sandbagging, roleplay)
+- Demonstrates dataset integrations (PokerBench, GSM8K, TruthfulQA, MMLU)
+- Shows reasoning trace collection and conversion
 - Runs the complete deception circuit discovery pipeline
 - Analyzes results to find the best layers for deception detection
 - Creates visualizations showing your findings
-- Demonstrates causal testing with activation patching
+- Demonstrates both basic and advanced causal testing
 
 === HOW TO USE THIS SCRIPT ===
 
@@ -46,13 +49,23 @@ import numpy as np
 from pathlib import Path
 import pandas as pd
 
-# Import our deception circuits modules
+# Import core deception circuits modules
 from deception_circuits import (
     DeceptionDataLoader,
     DeceptionTrainingPipeline,
     CircuitAnalyzer,
     VisualizationTools,
-    CausalTester
+    CausalTester,
+    # Dataset integrations
+    DatasetIntegrationPipeline,
+    PokerBenchIntegration,
+    # Reasoning traces
+    ReasoningTraceCollector,
+    ReasoningTrace,
+    ReasoningStep,
+    # Advanced causal testing
+    AdvancedCausalTester,
+    SteeringVectorLearner
 )
 
 
@@ -288,6 +301,152 @@ def run_deception_experiment():
     return results, causal_results
 
 
+def demo_dataset_integration():
+    """Demonstrate using integrated datasets (PokerBench, GSM8K, TruthfulQA, MMLU)."""
+    print("=" * 60)
+    print("DATASET INTEGRATION DEMO")
+    print("=" * 60)
+    
+    # Create dataset integration pipeline
+    pipeline = DatasetIntegrationPipeline()
+    
+    # Example: Create complete dataset from multiple sources
+    print("\nCreating dataset from multiple sources...")
+    stats = pipeline.create_complete_dataset(
+        output_path="integrated_dataset.csv",
+        gsm8k_examples=50,  # Sandbagging examples
+        truthfulqa_examples=50,  # Truthful vs deceptive Q&A
+        mmlu_subsets=["high_school_mathematics", "history"],
+        mmlu_examples_per_subset=25,
+        pokerbench_examples=50  # Poker bluffing scenarios
+    )
+    
+    print(f"Created dataset with {stats['total_examples']} examples")
+    print(f"GSM8K: {stats['gsm8k_count']}, TruthfulQA: {stats['truthfulqa_count']}")
+    print(f"MMLU: {stats['mmlu_count']}, PokerBench: {stats['pokerbench_count']}")
+    
+    # Example: Use PokerBench directly
+    print("\nUsing PokerBench integration directly...")
+    pokerbench = PokerBenchIntegration()
+    try:
+        pokerbench.load_dataset("train")
+        scenarios = pokerbench.create_bluffing_scenarios(num_examples=10, filter_weak_hands=True)
+        print(f"Created {len(scenarios)} poker scenarios")
+        if scenarios:
+            print(f"Example scenario: {scenarios[0]['statement'][:50]}...")
+    except Exception as e:
+        print(f"Note: PokerBench requires HuggingFace datasets. Error: {e}")
+    
+    return stats
+
+
+def demo_reasoning_traces():
+    """Demonstrate reasoning trace collection and conversion."""
+    print("=" * 60)
+    print("REASONING TRACE DEMO")
+    print("=" * 60)
+    
+    # Create reasoning trace collector
+    collector = ReasoningTraceCollector()
+    
+    # Simulate collecting a reasoning trace (in practice, these would come from model generation)
+    print("\nCollecting reasoning trace...")
+    trace = ReasoningTrace(
+        statement="What is 2+2?",
+        response="4",
+        label=0,  # Truthful
+        scenario="general",
+        steps=[
+            ReasoningStep(
+                step_num=0,
+                reasoning="I need to calculate 2+2",
+                activations=torch.randn(24, 768),  # Simulated layer-wise activations
+                attention_weights=None
+            ),
+            ReasoningStep(
+                step_num=1,
+                reasoning="2 plus 2 equals 4",
+                activations=torch.randn(24, 768),
+                attention_weights=None
+            ),
+            ReasoningStep(
+                step_num=2,
+                reasoning="The answer is 4",
+                activations=torch.randn(24, 768),
+                attention_weights=None
+            )
+        ]
+    )
+    
+    collector.add_trace(trace)
+    print(f"Collected trace with {len(trace.steps)} reasoning steps")
+    
+    # Convert traces to activations
+    print("\nConverting traces to activations...")
+    activations, labels = collector.convert_traces_to_activations()
+    print(f"Converted to activations shape: {activations.shape}")
+    print(f"Labels shape: {labels.shape}")
+    
+    # Convert traces to DataFrame
+    print("\nConverting traces to DataFrame...")
+    df = collector.convert_traces_to_dataframe()
+    print(f"DataFrame shape: {df.shape}")
+    print(f"Columns: {df.columns.tolist()}")
+    
+    return collector, activations, labels, df
+
+
+def demo_advanced_causal_testing():
+    """Demonstrate advanced causal testing (steering vectors, attention patching)."""
+    print("=" * 60)
+    print("ADVANCED CAUSAL TESTING DEMO")
+    print("=" * 60)
+    
+    # Create sample activations
+    num_samples = 20
+    num_layers = 24
+    hidden_dim = 768
+    
+    truthful_activations = torch.randn(num_samples // 2, num_layers, hidden_dim)
+    deceptive_activations = torch.randn(num_samples // 2, num_layers, hidden_dim)
+    truthful_labels = torch.zeros(num_samples // 2)
+    deceptive_labels = torch.ones(num_samples // 2)
+    
+    # Example: Learn steering vectors
+    print("\nLearning steering vectors...")
+    learner = SteeringVectorLearner(device="cpu")
+    steering_vector = learner.learn_deception_steering_vector(
+        truthful_activations, deceptive_activations, method='pca'
+    )
+    print(f"Steering vector shape: {steering_vector.shape}")
+    
+    # Example: Advanced causal testing
+    print("\nRunning advanced causal tests...")
+    advanced_tester = AdvancedCausalTester(device="cpu")
+    
+    # Create a dummy probe for testing
+    from deception_circuits import DeceptionLinearProbe
+    probe = DeceptionLinearProbe(input_dim=hidden_dim)
+    
+    try:
+        results = advanced_tester.run_comprehensive_advanced_test(
+            model=None,  # Would be a real model in practice
+            truthful_activations=truthful_activations,
+            deceptive_activations=deceptive_activations,
+            truthful_labels=truthful_labels,
+            deceptive_labels=deceptive_labels,
+            probe=probe,
+            layer_indices=[15, 16, 17, 18, 19]
+        )
+        print("Advanced causal testing complete!")
+        if 'summary' in results:
+            print(f"Steering effectiveness: {results.get('summary', {}).get('steering_effective', 'N/A')}")
+    except Exception as e:
+        print(f"Note: Advanced testing requires model access. Error: {e}")
+    
+    return steering_vector
+
+
 def quick_demo():
     """Run a quick demonstration of the framework."""
     print("Running quick demonstration...")
@@ -324,6 +483,29 @@ if __name__ == "__main__":
     try:
         results, causal_results = run_deception_experiment()
         print("\nFull experiment completed successfully!")
+        
+        # Optionally run additional demos
+        print("\n" + "=" * 60)
+        print("RUNNING ADDITIONAL DEMOS")
+        print("=" * 60)
+        
+        # Demo: Dataset integration
+        try:
+            demo_dataset_integration()
+        except Exception as e:
+            print(f"Dataset integration demo skipped: {e}")
+        
+        # Demo: Reasoning traces
+        try:
+            demo_reasoning_traces()
+        except Exception as e:
+            print(f"Reasoning traces demo skipped: {e}")
+        
+        # Demo: Advanced causal testing
+        try:
+            demo_advanced_causal_testing()
+        except Exception as e:
+            print(f"Advanced causal testing demo skipped: {e}")
         
     except Exception as e:
         print(f"Full experiment failed: {e}")

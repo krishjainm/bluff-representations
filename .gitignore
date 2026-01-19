@@ -78,6 +78,8 @@ Thumbs.db
 deception_results/
 quick_demo_results/
 sample_data/activations.pt
+paper_figures/
+sample_data_for_graphs/
 *.pt
 *.pth
 *.pkl

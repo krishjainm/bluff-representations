@@ -455,4 +455,83 @@ class ReasoningTraceCollector:
             self.traces.append(trace)
         
         print(f"Loaded {len(self.traces)} traces from {traces_path}")
+    
+    def convert_traces_to_activations(self, 
+                                     traces: Optional[List[ReasoningTrace]] = None,
+                                     use_final_step: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Convert reasoning traces to activation tensors for training.
+        
+        Args:
+            traces: List of traces to convert (None to use all collected traces)
+            use_final_step: If True, use final step activations; if False, average all steps
+            
+        Returns:
+            Tuple of (activations, labels) where activations is [num_samples, num_layers, hidden_dim]
+        """
+        if traces is None:
+            traces = self.traces
+        
+        if len(traces) == 0:
+            raise ValueError("No traces available to convert")
+        
+        activations_list = []
+        labels_list = []
+        
+        for trace in traces:
+            if len(trace.steps) == 0:
+                continue
+            
+            if use_final_step:
+                # Use final step activations
+                step_activations = trace.steps[-1].activations  # [num_layers, hidden_dim]
+            else:
+                # Average across all steps
+                step_activations_list = [step.activations for step in trace.steps]
+                step_activations = torch.stack(step_activations_list).mean(dim=0)  # [num_layers, hidden_dim]
+            
+            activations_list.append(step_activations)
+            labels_list.append(trace.label)
+        
+        if len(activations_list) == 0:
+            raise ValueError("No valid traces with steps found")
+        
+        # Stack activations: [num_samples, num_layers, hidden_dim]
+        activations = torch.stack(activations_list)
+        labels = torch.tensor(labels_list, dtype=torch.float32)
+        
+        return activations, labels
+    
+    def convert_traces_to_dataframe(self, 
+                                   traces: Optional[List[ReasoningTrace]] = None) -> 'pd.DataFrame':
+        """
+        Convert reasoning traces to DataFrame format compatible with DeceptionDataLoader.
+        
+        Args:
+            traces: List of traces to convert (None to use all collected traces)
+            
+        Returns:
+            DataFrame with columns: statement, response, label, scenario
+        """
+        import pandas as pd
+        
+        if traces is None:
+            traces = self.traces
+        
+        rows = []
+        for trace in traces:
+            # Use first step prompt as statement, final response as response
+            statement = trace.steps[0].prompt if trace.steps else ""
+            response = trace.final_response
+            
+            rows.append({
+                'statement': statement,
+                'response': response,
+                'label': trace.label,
+                'scenario': trace.scenario,
+                'trace_id': trace.trace_id,
+                'num_steps': len(trace.steps)
+            })
+        
+        return pd.DataFrame(rows)
 
