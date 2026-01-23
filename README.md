@@ -23,9 +23,13 @@ git clone https://github.com/krishjainm/Deception-LLMs.git
 cd Deception-LLMs
 ```
 
-2. Install dependencies:
+2. Install dependencies with uv:
 ```bash
-pip install -r requirements.txt
+# If you don't have uv installed, install it first:
+# curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies and sync environment
+uv sync
 ```
 
 ## Quick Start
@@ -255,7 +259,7 @@ dashboard = viz_tools.create_interactive_dashboard(results)
 Run the complete example:
 
 ```bash
-python example_usage.py
+uv run example_usage.py
 ```
 
 This will:
@@ -361,13 +365,13 @@ Run the test suites:
 
 ```bash
 # Core framework tests
-python test_framework.py
+uv run test_framework.py
 
 # Integration tests
-python test_integration.py
+uv run test_integration.py
 
 # Quick validation
-python quick_validation.py
+uv run quick_validation.py
 ```
 
 ## Documentation
