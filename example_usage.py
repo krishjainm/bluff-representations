@@ -467,12 +467,32 @@ def quick_demo():
         'scenario': ['general', 'sandbagging', 'general', 'sandbagging', 'general', 'sandbagging']
     })
     
+    # Create data directory
+    data_dir = Path("quick_demo_data")
+    data_dir.mkdir(exist_ok=True)
+    
     # Save sample data
-    sample_data.to_csv('quick_demo.csv', index=False)
+    csv_path = data_dir / 'quick_demo.csv'
+    sample_data.to_csv(csv_path, index=False)
+    
+    # Create and save dummy activations
+    print("Generating dummy activations...")
+    num_samples = len(sample_data)
+    # Shape: [num_samples, num_layers, hidden_dim]
+    dummy_activations = torch.randn(num_samples, 12, 768)
+    torch.save(dummy_activations, data_dir / 'activations.pt')
     
     # Run quick experiment
     pipeline = DeceptionTrainingPipeline(device="cpu", output_dir="quick_demo_results")
-    results = pipeline.quick_test('quick_demo.csv', num_samples=6)
+    
+    # We use run_full_experiment directly to pass activation_dir
+    results = pipeline.run_full_experiment(
+        csv_path=csv_path,
+        activation_dir=data_dir,
+        max_samples=6,
+        probe_config={'epochs': 5},
+        autoencoder_config={'epochs': 5}
+    )
     
     print("Quick demo complete!")
     return results

@@ -290,6 +290,11 @@ class DeceptionTrainingPipeline:
         if save_results:
             self._save_results(final_results)
             
+        # Re-inject dataframe into results for in-memory use
+        # We do this after saving to avoid serializing the potentially large dataframe into the JSON
+        if 'data_info' in final_results:
+             final_results['data_info']['dataframe'] = df
+            
         self.results = final_results
         
         print("\n" + "=" * 50)
