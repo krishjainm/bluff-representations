@@ -81,11 +81,14 @@ This is the heart of the BLKY research methodology!
 
 import torch
 import numpy as np
+import logging
 from typing import Dict, List, Tuple, Optional, Union, Any
 from pathlib import Path
 import json
 import time
 from collections import defaultdict
+
+_log = logging.getLogger(__name__)
 
 from .data_loader import DeceptionDataLoader
 from .linear_probe import LinearProbeTrainer, DeceptionLinearProbe
@@ -147,7 +150,12 @@ class DeceptionTrainingPipeline:
                           max_samples: Optional[int] = None,
                           probe_config: Optional[Dict] = None,
                           autoencoder_config: Optional[Dict] = None,
-                          save_results: bool = True) -> Dict:
+                          save_results: bool = True,
+                          split_mode: str = "base_item",
+                          test_size: float = 0.2,
+                          val_size: float = 0.0,
+                          stratify_keys: Optional[List[str]] = None,
+                          run_sklearn_baseline: bool = True) -> Dict:
         """
         Run complete deception circuit experiment.
         
@@ -159,6 +167,11 @@ class DeceptionTrainingPipeline:
             probe_config: Configuration for linear probes
             autoencoder_config: Configuration for autoencoders
             save_results: Whether to save results to disk
+            split_mode: 'base_item' (default, no paired leakage) or 'row'
+            test_size: Test fraction (base items or rows)
+            val_size: Validation fraction of all base items (split_mode=base_item only)
+            stratify_keys: Stratification columns for base-item split
+            run_sklearn_baseline: Also fit sklearn logistic regression per layer
             
         Returns:
             Dictionary with complete experiment results
@@ -204,13 +217,27 @@ class DeceptionTrainingPipeline:
         if scenarios is not None:
             df = self.data_loader.filter_by_scenario(df, scenarios)
             print(f"   Filtered to scenarios {scenarios}: {len(df)} samples")
-        
+
+        self.data_loader.data = df
+
         # Step 2: Split data
         print("\n2. Splitting Data...")
-        train_data, test_data = self.data_loader.split_data(
-            test_size=0.2, stratify=True, random_state=42
-        )
+        val_data = None
+        if split_mode == "base_item":
+            train_data, val_data, test_data = self.data_loader.split_by_base_item(
+                test_size=test_size,
+                val_size=val_size,
+                stratify_keys=stratify_keys,
+                random_state=42,
+            )
+            print(f"   Split: base_item-level (train / val / test)")
+        else:
+            train_data, test_data = self.data_loader.split_data(
+                test_size=test_size, stratify=True, random_state=42
+            )
         print(f"   Train: {train_data['num_samples']} samples")
+        if val_data is not None:
+            print(f"   Val: {val_data['num_samples']} samples")
         print(f"   Test: {test_data['num_samples']} samples")
         
         # Step 3: Extract activations
@@ -219,6 +246,11 @@ class DeceptionTrainingPipeline:
         train_labels = self.data_loader.get_labels_tensor(train_data['dataframe'])
         test_activations = self.data_loader.get_activations_tensor(test_data['dataframe'])
         test_labels = self.data_loader.get_labels_tensor(test_data['dataframe'])
+
+        val_activations = val_labels_pt = None
+        if val_data is not None:
+            val_activations = self.data_loader.get_activations_tensor(val_data['dataframe'])
+            val_labels_pt = self.data_loader.get_labels_tensor(val_data['dataframe'])
         
         print(f"   Activations shape: {train_activations.shape}")
         print(f"   Number of layers: {train_activations.shape[1]}")
@@ -228,7 +260,10 @@ class DeceptionTrainingPipeline:
         probe_results = self._train_linear_probes(
             train_activations, train_labels,
             test_activations, test_labels,
-            probe_config
+            probe_config,
+            val_activations=val_activations,
+            val_labels=val_labels_pt,
+            run_sklearn_baseline=run_sklearn_baseline,
         )
         
         # Step 5: Train sparse autoencoders
@@ -252,8 +287,9 @@ class DeceptionTrainingPipeline:
         if 'scenario' in df.columns and len(df['scenario'].unique()) > 1:
             print("\n7. Cross-Scenario Analysis...")
             cross_scenario_results = self._cross_scenario_analysis(
-                df, train_activations, train_labels, test_activations, test_labels,
-                probe_config, autoencoder_config
+                train_data['dataframe'],
+                test_data['dataframe'],
+                probe_config,
             )
         
         # Compile final results
@@ -269,7 +305,9 @@ class DeceptionTrainingPipeline:
             'data_info': data_info_serializable,
             'train_test_split': {
                 'train_samples': train_data['num_samples'],
-                'test_samples': test_data['num_samples']
+                'val_samples': val_data['num_samples'] if val_data else 0,
+                'test_samples': test_data['num_samples'],
+                'split_mode': split_mode,
             },
             'probe_results': probe_results,
             'autoencoder_results': autoencoder_results,
@@ -288,6 +326,9 @@ class DeceptionTrainingPipeline:
         
         # Save results
         if save_results:
+            self._export_probe_test_artifacts(
+                probe_results, test_activations, test_labels
+            )
             self._save_results(final_results)
             
         # Re-inject dataframe into results for in-memory use
@@ -307,27 +348,31 @@ class DeceptionTrainingPipeline:
                            train_labels: torch.Tensor,
                            test_activations: torch.Tensor,
                            test_labels: torch.Tensor,
-                           config: Dict) -> Dict:
+                           config: Dict,
+                           val_activations: Optional[torch.Tensor] = None,
+                           val_labels: Optional[torch.Tensor] = None,
+                           run_sklearn_baseline: bool = True) -> Dict:
         """Train linear probes across all layers."""
         num_layers = train_activations.shape[1]
         layer_names = [f"layer_{i}" for i in range(num_layers)]
         
         # Update probe trainer learning rate if specified in config
+        config = dict(config)
         if 'lr' in config:
             self.probe_trainer.lr = config['lr']
-            # Remove lr from config to avoid passing it to train_multi_layer_probes
             config = {k: v for k, v in config.items() if k != 'lr'}
         
-        # Train probes for each layer
-        probe_results = self.probe_trainer.train_multi_layer_probes(
+        multi_layer = self.probe_trainer.train_multi_layer_probes(
             train_activations, train_labels,
             layer_names=layer_names,
+            val_activations=val_activations,
+            val_labels=val_labels,
             **config
         )
         
         # Evaluate on test set
         test_results = {}
-        for layer_name, layer_results in probe_results.items():
+        for layer_name, layer_results in multi_layer.items():
             probe = layer_results['results']['probe']
             test_metrics = self.probe_trainer.evaluate_probe(
                 probe, test_activations[:, layer_results['layer_idx'], :], test_labels
@@ -336,9 +381,16 @@ class DeceptionTrainingPipeline:
             
         # Find best performing layer
         best_layer = max(test_results.items(), key=lambda x: x[1]['auc'])
+
+        sklearn_block = {}
+        if run_sklearn_baseline:
+            from .linear_probe import train_sklearn_probes_all_layers
+            sklearn_block = train_sklearn_probes_all_layers(
+                train_activations, train_labels, test_activations, test_labels
+            )
         
         return {
-            'layer_results': probe_results,
+            'layer_results': multi_layer,
             'test_results': test_results,
             'best_layer': {
                 'layer_name': best_layer[0],
@@ -347,8 +399,10 @@ class DeceptionTrainingPipeline:
             'summary': {
                 'num_layers': num_layers,
                 'best_auc': best_layer[1]['auc'],
-                'best_accuracy': best_layer[1]['accuracy']
-            }
+                'best_accuracy': best_layer[1]['accuracy'],
+                'best_ece': best_layer[1].get('ece', None),
+            },
+            'sklearn_logistic': sklearn_block,
         }
         
     def _train_sparse_autoencoders(self, train_activations: torch.Tensor,
@@ -497,70 +551,126 @@ class DeceptionTrainingPipeline:
             }
         }
         
-    def _cross_scenario_analysis(self, df, train_activations: torch.Tensor,
-                               train_labels: torch.Tensor,
-                               test_activations: torch.Tensor,
-                               test_labels: torch.Tensor,
-                               probe_config: Dict,
-                               autoencoder_config: Dict) -> Dict:
-        """Analyze generalization across different deception scenarios."""
+    def _cross_scenario_analysis(self, train_df,
+                               test_df,
+                               probe_config: Dict) -> Dict:
+        """Train on one scenario (train split only), evaluate on each scenario (test split)."""
+        scenarios = train_df['scenario'].unique()
+        cross_results: Dict = {}
+        probe_kwargs = {k: v for k, v in probe_config.items()
+                        if k in ('epochs', 'batch_size', 'validation_split',
+                                 'early_stopping_patience')}
         
-        scenarios = df['scenario'].unique()
-        cross_results = {}
-        
-        # Train on one scenario, test on others
         for train_scenario in scenarios:
             print(f"   Training on {train_scenario}...")
-            
-            # Filter training data for this scenario
             train_scenario_df = self.data_loader.filter_by_scenario(
-                df.iloc[:len(train_activations)], [train_scenario]
+                train_df, [train_scenario]
             )
-            if len(train_scenario_df) < 10:  # Skip if too few samples
+            if len(train_scenario_df) < 10:
                 continue
-                
-            train_scenario_activations = self.data_loader.get_activations_tensor(train_scenario_df)
+            train_scenario_activations = self.data_loader.get_activations_tensor(
+                train_scenario_df
+            )
             train_scenario_labels = self.data_loader.get_labels_tensor(train_scenario_df)
-            
-            # Train probe on this scenario
             scenario_probe_results = self.probe_trainer.train_multi_layer_probes(
                 train_scenario_activations, train_scenario_labels,
-                **probe_config
+                **probe_kwargs
             )
-            
-            # Test on all scenarios
             scenario_test_results = {}
             for test_scenario in scenarios:
                 test_scenario_df = self.data_loader.filter_by_scenario(
-                    df.iloc[len(train_activations):], [test_scenario]
+                    test_df, [test_scenario]
                 )
-                if len(test_scenario_df) < 5:  # Skip if too few samples
+                if len(test_scenario_df) < 5:
                     continue
-                    
-                test_scenario_activations = self.data_loader.get_activations_tensor(test_scenario_df)
+                test_scenario_activations = self.data_loader.get_activations_tensor(
+                    test_scenario_df
+                )
                 test_scenario_labels = self.data_loader.get_labels_tensor(test_scenario_df)
-                
-                # Evaluate best probe on this test scenario
                 best_layer_name = max(
                     scenario_probe_results.items(),
                     key=lambda x: x[1]['final_auc']
                 )[0]
-                
                 best_probe = scenario_probe_results[best_layer_name]['results']['probe']
+                li = scenario_probe_results[best_layer_name]['layer_idx']
                 test_metrics = self.probe_trainer.evaluate_probe(
                     best_probe,
-                    test_scenario_activations[:, scenario_probe_results[best_layer_name]['layer_idx'], :],
+                    test_scenario_activations[:, li, :],
                     test_scenario_labels
                 )
-                
                 scenario_test_results[test_scenario] = test_metrics
-                
-            cross_results[train_scenario] = {
+            cross_results[str(train_scenario)] = {
                 'train_samples': len(train_scenario_df),
-                'test_results': scenario_test_results
+                'test_results': {
+                    str(ts): self._probe_metrics_json(met)
+                    for ts, met in scenario_test_results.items()
+                },
             }
-            
         return cross_results
+
+    def _export_probe_test_artifacts(
+        self,
+        probe_results: Dict,
+        test_activations: torch.Tensor,
+        test_labels: torch.Tensor,
+    ) -> None:
+        """
+        Save held-out probabilities / norms for ROC plots and bootstrap CIs
+        (``test_predictions_best_probe.npz``, ``bootstrap_confidence.json``).
+        """
+        best_name = probe_results["best_layer"]["layer_name"]
+        met = probe_results["test_results"][best_name]
+        probs = np.asarray(met["probabilities"], dtype=np.float64).ravel()
+        y = test_labels.detach().cpu().numpy().astype(np.int64)
+        li = int(probe_results["layer_results"][best_name]["layer_idx"])
+        acts = (
+            test_activations[:, li, :]
+            .float()
+            .norm(dim=1)
+            .detach()
+            .cpu()
+            .numpy()
+        )
+
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            self.output_dir / "test_predictions_best_probe.npz",
+            probabilities=probs,
+            labels=y,
+            activation_l2_norm=acts,
+            best_layer_index=np.array([li], dtype=np.int64),
+            best_layer_name=np.array([best_name], dtype=object),
+        )
+
+        from .experiment_stats import build_bootstrap_summary
+
+        boot = build_bootstrap_summary(y, probs)
+        payload = {
+            "best_layer": best_name,
+            "n_test": int(len(y)),
+            "auroc": boot["auroc"],
+            "accuracy": boot["accuracy"],
+        }
+        with open(
+            self.output_dir / "bootstrap_confidence.json",
+            "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(payload, f, indent=2)
+
+    @staticmethod
+    def _probe_metrics_json(met: Dict) -> Dict:
+        out = {}
+        for k, v in met.items():
+            if k in ('predictions', 'probabilities'):
+                continue
+            if isinstance(v, np.generic):
+                out[k] = float(v)
+            elif isinstance(v, (float, int)):
+                out[k] = float(v)
+            else:
+                out[k] = v
+        return out
         
     def _save_results(self, results: Dict) -> None:
         """Save results to disk."""
@@ -596,6 +706,35 @@ class DeceptionTrainingPipeline:
             best_autoencoder = supervised_results[best_layer_name]['autoencoder']
             autoencoder_path = models_dir / f"best_autoencoder_{best_layer_name}.pt"
             torch.save(best_autoencoder.state_dict(), autoencoder_path)
+            meta = {
+                "input_dim": best_autoencoder.input_dim,
+                "bottleneck_dim": best_autoencoder.bottleneck_dim,
+                "tied_weights": best_autoencoder.tied_weights,
+                "activation_type": best_autoencoder.activation_type,
+                "topk_percent": best_autoencoder.topk_percent,
+                "dropout": best_autoencoder.dropout,
+                "supervised": isinstance(
+                    best_autoencoder, SupervisedDeceptionAutoencoder
+                ),
+                "layer_name": best_layer_name,
+            }
+            meta_path = autoencoder_path.with_suffix(".meta.json")
+            with open(meta_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, indent=2)
+
+        try:
+            from .paper_figure_suite import build_paper_figures_from_experiment_dir
+
+            fig_info = build_paper_figures_from_experiment_dir(
+                self.output_dir, auxiliary_dir=None
+            )
+            if fig_info.get("figures"):
+                print(
+                    f"Paper figures updated ({len(fig_info['figures'])} files) -> "
+                    f"{fig_info.get('paper_figures_dir', 'paper_figures')}"
+                )
+        except Exception as e:
+            _log.warning("Could not refresh paper_figures: %s", e)
             
         print(f"Results saved to {self.output_dir}")
         

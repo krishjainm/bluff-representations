@@ -83,11 +83,16 @@ __author__ = "Krish Jain"
 
 # Import all main classes for easy access
 from .data_loader import DeceptionDataLoader
-from .linear_probe import DeceptionLinearProbe, LinearProbeTrainer
+from .linear_probe import (
+    DeceptionLinearProbe,
+    LinearProbeTrainer,
+    binary_ece,
+    train_sklearn_probes_all_layers,
+    normalized_probe_steering_vector,
+)
 from .sparse_autoencoder import DeceptionSparseAutoencoder, AutoencoderTrainer
 from .activation_patching import ActivationPatcher, CausalTester
 from .analysis import CircuitAnalyzer, VisualizationTools
-from .paper_visualizations import PaperVisualizationSystem
 from .training_pipeline import DeceptionTrainingPipeline
 
 # Import new production-ready modules
@@ -136,6 +141,31 @@ from .game_data_loaders import (
     MafiaDataLoader, BullshitDataLoader, PokerGameDataLoader,
     MafiaGameData, BullshitGameData, PokerGameData
 )
+from .causal_generation import (
+    CausalLMInterventionRunner,
+    InterventionResult,
+    paired_patch_vector,
+)
+from .activation_sites import get_transformer_layers, resolve_hook_module
+from .dataset_balance import balance_base_items_stratified
+from .behavioral_metrics import (
+    score_response_quality,
+    deception_proxy_factual,
+    aggregate_behavioral_table,
+)
+from .paper_controls import run_causal_control_suite, control_suite_to_jsonable
+from .paper_full_pipeline import run_paper_full_suite
+from .paper_figure_suite import build_paper_figures_from_experiment_dir
+from .sae_steering import (
+    build_autoencoder_from_state_dict,
+    decoder_column_steering_vector,
+    load_checkpoint_steering_vector,
+    rank_features_by_label_correlation,
+    suggest_deception_feature_indices,
+    load_sae_meta,
+)
+from .paper_results_plots import plot_probe_curves_from_json, extract_probe_curves
+from .llm_judge import judge_single_response, judge_csv_column, JudgeResult
 
 # Define what gets imported when someone does "from deception_circuits import *"
 __all__ = [
@@ -143,13 +173,15 @@ __all__ = [
     "DeceptionDataLoader",      # Loads CSV data with activation support
     "DeceptionLinearProbe",     # Linear classifier for deception detection
     "LinearProbeTrainer",       # Trains probes across multiple layers
+    "binary_ece",               # Expected calibration error (paper metric)
+    "train_sklearn_probes_all_layers",  # Sklearn logistic probes + steering vectors
+    "normalized_probe_steering_vector",  # Unit direction from torch probe
     "DeceptionSparseAutoencoder", # Discovers interpretable features
     "AutoencoderTrainer",       # Trains autoencoders with sparsity
     "ActivationPatcher",        # Core patching operations
     "CausalTester",             # Comprehensive causal testing framework
     "CircuitAnalyzer",          # Analyzes results and identifies circuits
     "VisualizationTools",       # Creates plots and dashboards
-    "PaperVisualizationSystem", # Publication-ready paper visualizations
     "DeceptionTrainingPipeline", # Main orchestration class
     
     # Real Model Integration
@@ -214,4 +246,28 @@ __all__ = [
     "MafiaGameData",           # Mafia game data structure
     "BullshitGameData",        # Bullshit game data structure
     "PokerGameData",           # Poker game data structure
+    "CausalLMInterventionRunner",  # Generation-time steering / patching (HF causal LM)
+    "InterventionResult",      # Output of a steered generation run
+    "paired_patch_vector",     # Truth vs deceptive hidden for patch experiments
+    "get_transformer_layers",  # HF layer stack accessor
+    "resolve_hook_module",     # block / attn / mlp hook targets
+    "balance_base_items_stratified",  # Equalize base items per stratum
+    "score_response_quality",  # Length / repetition / refusal heuristics
+    "deception_proxy_factual",  # Optional ground_truth column behavior check
+    "aggregate_behavioral_table",  # Summarize behavioral dict rows
+    "run_causal_control_suite",  # Random / ortho / mismatched-patch controls
+    "control_suite_to_jsonable",  # Serialize control outputs
+    "run_paper_full_suite",    # Orchestrated paper JSON outputs
+    "build_paper_figures_from_experiment_dir",  # Regenerate paper_figures from experiment_results.json
+    "build_autoencoder_from_state_dict",
+    "decoder_column_steering_vector",
+    "load_checkpoint_steering_vector",
+    "rank_features_by_label_correlation",
+    "suggest_deception_feature_indices",
+    "load_sae_meta",
+    "plot_probe_curves_from_json",
+    "extract_probe_curves",
+    "judge_single_response",
+    "judge_csv_column",
+    "JudgeResult",
 ]

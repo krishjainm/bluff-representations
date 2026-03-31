@@ -110,7 +110,125 @@ class DeceptionDataLoader:
         self.data = None          # Store loaded dataset
         self.train_data = None    # Store training split
         self.test_data = None     # Store test split
+        self.val_data = None      # Optional validation split (base-item-level)
         
+    def _ensure_paper_schema(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Ensure columns required for paper-style experiments: base_item_id,
+        difficulty_bucket. Pairs rows with the same (statement, scenario) into one base item.
+        """
+        df = df.copy()
+        if 'scenario' not in df.columns:
+            df['scenario'] = 'unknown'
+        if 'difficulty_bucket' not in df.columns:
+            df['difficulty_bucket'] = 'default'
+        df['difficulty_bucket'] = df['difficulty_bucket'].fillna('default').astype(str)
+        if 'base_item_id' not in df.columns or df['base_item_id'].isna().any():
+            key = df['statement'].astype(str) + '||' + df['scenario'].astype(str)
+            mapping = {}
+            ids = []
+            nxt = 0
+            for k in key:
+                if k not in mapping:
+                    mapping[k] = nxt
+                    nxt += 1
+                ids.append(mapping[k])
+            df['base_item_id'] = ids
+        else:
+            df['base_item_id'] = pd.to_numeric(df['base_item_id'], errors='coerce').fillna(0).astype(int)
+        if 'sample_id' not in df.columns:
+            df['sample_id'] = range(len(df))
+        return df
+
+    def split_by_base_item(
+        self,
+        test_size: float = 0.2,
+        val_size: float = 0.0,
+        stratify_keys: Optional[List[str]] = None,
+        random_state: int = 42,
+    ) -> Tuple[Dict, Optional[Dict], Dict]:
+        """
+        Split at base-item level so truthful and deceptive runs for the same base
+        item never land in different splits (no content leakage).
+
+        val_size is interpreted as a fraction of **all** base items (not of train only).
+
+        Returns:
+            train_dict, val_dict or None, test_dict — each suitable for get_activations_tensor.
+        """
+        if self.data is None:
+            raise ValueError("No data loaded. Call load_csv() first.")
+        df = self._ensure_paper_schema(self.data)
+        if stratify_keys is None:
+            stratify_keys = ['scenario', 'difficulty_bucket']
+        for c in stratify_keys:
+            if c not in df.columns:
+                df[c] = 'default'
+        bases = df.drop_duplicates(subset=['base_item_id'], keep='first').copy()
+        bases['_strat'] = bases[stratify_keys[0]].astype(str)
+        for k in stratify_keys[1:]:
+            bases['_strat'] = bases['_strat'] + '_' + bases[k].astype(str)
+        strat = bases['_strat'] if bases['_strat'].nunique() > 1 else None
+        base_ids = bases['base_item_id'].values
+
+        def _split_ids(ids_arr, sz, st, rs):
+            try:
+                return train_test_split(
+                    ids_arr, test_size=sz, random_state=rs, stratify=st
+                )
+            except ValueError:
+                return train_test_split(
+                    ids_arr, test_size=sz, random_state=rs, stratify=None
+                )
+
+        train_val_ids, test_ids = _split_ids(
+            base_ids, test_size, strat, random_state
+        )
+        val_df = None
+        if val_size and val_size > 0:
+            bases_tv = bases[bases['base_item_id'].isin(train_val_ids)]
+            st2 = bases_tv['_strat'] if bases_tv['_strat'].nunique() > 1 else None
+            rel_val = val_size / max(1e-8, (1.0 - test_size))
+            rel_val = min(max(rel_val, 0.0), 1.0 - 1e-6)
+            train_ids, val_ids = _split_ids(
+                bases_tv['base_item_id'].values,
+                rel_val,
+                st2,
+                random_state + 1,
+            )
+        else:
+            train_ids = train_val_ids
+            val_ids = np.array([], dtype=int)
+        train_df = df[df['base_item_id'].isin(train_ids)].reset_index(drop=True)
+        test_df = df[df['base_item_id'].isin(test_ids)].reset_index(drop=True)
+        if len(val_ids):
+            val_df = df[df['base_item_id'].isin(val_ids)].reset_index(drop=True)
+        self.train_data = train_df
+        self.test_data = test_df
+        self.val_data = val_df
+        pack = lambda d: {
+            'dataframe': d,
+            'statistics': self._calculate_statistics(d),
+            'num_samples': len(d),
+        }
+        return pack(train_df), pack(val_df) if val_df is not None else None, pack(test_df)
+
+    def apply_balance(
+        self,
+        stratify_columns: Optional[List[str]] = None,
+        random_state: int = 42,
+    ) -> pd.DataFrame:
+        """Subsample base items for equal counts per stratum (in-place on ``self.data``)."""
+        if self.data is None:
+            raise ValueError("No data loaded.")
+        from .dataset_balance import balance_base_items_stratified
+
+        cols = stratify_columns or ["scenario", "difficulty_bucket"]
+        self.data = balance_base_items_stratified(
+            self.data, stratify_columns=cols, random_state=random_state
+        )
+        return self.data
+
     def load_csv(self, csv_path: Union[str, Path], 
                  activation_dir: Optional[Union[str, Path]] = None,
                  max_samples: Optional[int] = None) -> Dict:
@@ -171,11 +289,15 @@ class DeceptionDataLoader:
         # Limit number of samples if specified (useful for testing)
         if max_samples and len(df) > max_samples:
             df = df.sample(n=max_samples, random_state=42).reset_index(drop=True)
-            
+
+        df = self._ensure_paper_schema(df)
+
         # Load activation data if activation directory is provided
         if activation_dir:
             df = self._load_activations(df, activation_dir)
-            
+        elif 'activations' not in df.columns:
+            df = self._fill_dummy_activations(df)
+
         # Store loaded data
         self.data = df
         
@@ -190,6 +312,17 @@ class DeceptionDataLoader:
             'num_deceptive': len(df[df['label'] == 1])
         }
         
+    def _fill_dummy_activations(
+        self, df: pd.DataFrame, num_layers: int = 32, hidden_dim: int = 768
+    ) -> pd.DataFrame:
+        """Placeholder activations when no ``activation_dir`` (tests / demos only)."""
+        df = df.copy()
+        acts = [
+            torch.randn(num_layers, hidden_dim).to(self.device) for _ in range(len(df))
+        ]
+        df['activations'] = acts
+        return df
+
     def _load_activations(self, df: pd.DataFrame, 
                          activation_dir: Union[str, Path]) -> pd.DataFrame:
         """
@@ -217,9 +350,13 @@ class DeceptionDataLoader:
         
         # Loop through each sample in the dataset
         for idx, row in df.iterrows():
+            sid = row['sample_id'] if 'sample_id' in row.index and pd.notna(row.get('sample_id')) else idx
+            sid = int(sid)
             # Try different naming conventions for activation files
             # This allows flexibility in how activation files are named
             possible_names = [
+                f"sample_{sid}.pt",
+                f"activations_{sid}.pt",
                 f"sample_{idx}.pt",                              # Simple index-based naming
                 f"activations_{idx}.npy",                        # NumPy format
                 f"{row.get('scenario', 'unknown')}_{idx}.pt",    # Scenario-based naming
@@ -366,33 +503,41 @@ class DeceptionDataLoader:
                          num_samples: int = 10) -> None:
         """Create a sample CSV file for testing."""
         sample_data = {
+            'base_item_id': [0, 0, 1, 1, 2, 2, 3, 3, 4, 4],
+            'difficulty_bucket': ['default'] * 10,
+            'sample_id': list(range(10)),
             'statement': [
                 "What is the capital of France?",
+                "What is the capital of France?",
+                "Do you have a strong hand in poker?",
                 "Do you have a strong hand in poker?",
                 "What is 2+2?",
+                "What is 2+2?",
+                "Are you confident about your answer?",
                 "Are you confident about your answer?",
                 "What is the largest planet?",
-                "Should I fold this hand?",
-                "What is the speed of light?",
-                "Do you know this information?",
-                "What is photosynthesis?",
-                "Are you sure about that?"
+                "What is the largest planet?",
             ],
             'response': [
                 "Paris",
-                "Yes, I have a strong hand",  # Deceptive (bluffing)
+                "I'm not sure — maybe London?",
+                "No, weak hand",
+                "Yes, I have a strong hand",
                 "4",
-                "No, I'm not sure",  # Deceptive (sandbagging)
+                "I'm not sure",
+                "Yes, I'm confident",
+                "No, I'm not sure",
                 "Jupiter",
-                "Yes, you should fold",  # Deceptive (bad advice)
-                "299,792,458 m/s",
-                "No, I don't know",  # Deceptive (hiding knowledge)
-                "The process by which plants convert light to energy",
-                "Yes, I'm certain"  # Deceptive (false confidence)
+                "Earth",
             ],
             'label': [0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
-            'scenario': ['general', 'poker', 'general', 'sandbagging', 'general', 
-                        'poker', 'general', 'sandbagging', 'general', 'roleplay']
+            'scenario': [
+                'general', 'general',
+                'poker', 'poker',
+                'general', 'general',
+                'sandbagging', 'sandbagging',
+                'general', 'general',
+            ],
         }
         
         df = pd.DataFrame(sample_data)

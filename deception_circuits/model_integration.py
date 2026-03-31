@@ -22,9 +22,17 @@ import time
 import logging
 from pathlib import Path
 from dataclasses import dataclass
-from transformers import AutoTokenizer, AutoModel, AutoConfig
+from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM
 import warnings
 warnings.filterwarnings("ignore")
+
+from .activation_sites import get_transformer_layers as _get_transformer_layers
+from .activation_sites import resolve_hook_module
+from .openai_compat import (
+    default_chat_model_for_base,
+    make_openai_client,
+    resolved_openai_base_url,
+)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -63,14 +71,19 @@ class GPT4oIntegration:
             config: Model configuration
         """
         self.api_key = api_key
-        self.client = openai.OpenAI(api_key=api_key)
-        self.config = config or ModelConfig(
-            model_name="gpt-4o",
-            max_tokens=150,
-            temperature=0.7,
-            batch_size=10,
-            rate_limit_delay=1.0
-        )
+        self.client = make_openai_client(api_key)
+        if config is None:
+            self.config = ModelConfig(
+                model_name=default_chat_model_for_base(
+                    resolved_openai_base_url(api_key)
+                ),
+                max_tokens=150,
+                temperature=0.7,
+                batch_size=10,
+                rate_limit_delay=1.0,
+            )
+        else:
+            self.config = config
         
     def generate_deception_pairs(self, 
                                 statements: List[str],
@@ -233,24 +246,30 @@ Gated Response:"""
         logger.info(f"Generating deception pairs for {len(statements)} statements...")
         pairs = self.generate_deception_pairs(statements, scenarios, num_pairs_per_statement=1)
         
-        # Convert to DataFrame format
+        # Convert to DataFrame format (paper-style pairing + stable activation IDs)
         dataset = []
-        for pair in pairs:
-            # Add truthful entry
+        sample_id = 0
+        for base_item_id, pair in enumerate(pairs):
             dataset.append({
+                'base_item_id': base_item_id,
+                'sample_id': sample_id,
+                'difficulty_bucket': 'default',
                 'statement': pair['statement'],
                 'response': pair['truthful_response'],
                 'label': 0,
-                'scenario': pair['scenario']
+                'scenario': pair['scenario'],
             })
-            
-            # Add deceptive entry
+            sample_id += 1
             dataset.append({
+                'base_item_id': base_item_id,
+                'sample_id': sample_id,
+                'difficulty_bucket': 'default',
                 'statement': pair['statement'],
                 'response': pair['deceptive_response'],
                 'label': 1,
-                'scenario': pair['scenario']
+                'scenario': pair['scenario'],
             })
+            sample_id += 1
         
         # Save dataset
         output_path = Path(output_path)
@@ -330,6 +349,26 @@ Gated Response:"""
         return statements
 
 
+def _pool_hidden_states(
+    hidden: torch.Tensor,
+    attention_mask: torch.Tensor,
+    pooling: str,
+) -> torch.Tensor:
+    """Pool [batch, seq, dim] -> [batch, dim]."""
+    if pooling == "first":
+        return hidden[:, 0, :]
+    if pooling == "mean":
+        mask = attention_mask.unsqueeze(-1).to(hidden.dtype)
+        summed = (hidden * mask).sum(dim=1)
+        denom = mask.sum(dim=1).clamp(min=1.0)
+        return summed / denom
+    # last non-pad (default for causal LMs)
+    idx = attention_mask.sum(dim=1) - 1
+    idx = idx.clamp(min=0)
+    b = torch.arange(hidden.size(0), device=hidden.device)
+    return hidden[b, idx, :]
+
+
 class ActivationExtractor:
     """
     Extract activations from transformer models during inference.
@@ -341,20 +380,31 @@ class ActivationExtractor:
     - Supporting multiple model architectures
     """
     
-    def __init__(self, model_name: str, device: str = "cpu"):
+    def __init__(
+        self,
+        model_name: str,
+        device: str = "cpu",
+        pooling: str = "last",
+        activation_site: str = "block",
+    ):
         """
         Initialize activation extractor.
         
         Args:
             model_name: HuggingFace model name
             device: Device to run model on
+            pooling: How to pool over sequence: 'last' (last non-pad), 'first', 'mean'
+            activation_site: ``block`` | ``attn`` | ``mlp`` (where to hook).
         """
         self.model_name = model_name
         self.device = device
+        self.pooling = pooling
+        self.activation_site = activation_site
         self.model = None
         self.tokenizer = None
         self.activations = {}
         self.hooks = []
+        self._is_causal = False
         
     def load_model(self):
         """Load the model and tokenizer with comprehensive error handling."""
@@ -377,9 +427,19 @@ class ActivationExtractor:
                 logger.info("Try checking if the model name is correct or if you need to authenticate")
                 raise ValueError(f"Tokenizer loading failed: {e}") from e
             
-            # Load model with error handling
+            # Load model with error handling (prefer causal LM for decoder stacks)
             try:
-                self.model = AutoModel.from_pretrained(self.model_name)
+                self.model = AutoModelForCausalLM.from_pretrained(self.model_name)
+                self._is_causal = True
+            except Exception as e_causal:
+                logger.info(
+                    "AutoModelForCausalLM not used (%s); loading AutoModel.", e_causal
+                )
+                self.model = None
+            try:
+                if self.model is None:
+                    self.model = AutoModel.from_pretrained(self.model_name)
+                    self._is_causal = False
             except OSError as e:
                 if "401" in str(e) or "Unauthorized" in str(e):
                     logger.error(f"Authentication failed for model {self.model_name}")
@@ -395,12 +455,21 @@ class ActivationExtractor:
                 logger.error(f"Unexpected error loading model: {e}")
                 raise ValueError(f"Model loading failed: {e}") from e
             
-            # Move to device with error handling
+            # Move to device (CPU-only PyTorch raises AssertionError on .to("cuda"))
+            if self.device == "cuda" and not torch.cuda.is_available():
+                logger.warning(
+                    "device='cuda' but CUDA is not available (CPU-only PyTorch or no GPU); "
+                    "using CPU — install CUDA PyTorch from pytorch.org or pass device='cpu'."
+                )
+                self.device = "cpu"
             try:
                 self.model.to(self.device)
-            except RuntimeError as e:
-                if "CUDA" in str(e) and self.device == "cuda":
-                    logger.warning(f"CUDA not available, falling back to CPU")
+            except (RuntimeError, AssertionError) as e:
+                err = str(e).lower()
+                if self.device == "cuda" and (
+                    "cuda" in err or "not compiled with cuda" in err
+                ):
+                    logger.warning("CUDA move failed; falling back to CPU: %s", e)
                     self.device = "cpu"
                     self.model.to(self.device)
                 else:
@@ -458,16 +527,17 @@ class ActivationExtractor:
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=512
+            max_length=512,
         )
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
+        attention_mask = inputs["attention_mask"]
         
         # Set up hooks to capture activations
         self._setup_hooks(layer_indices)
         
         # Forward pass
         with torch.no_grad():
-            outputs = self.model(**inputs)
+            self.model(**inputs)
         
         # Clean up hooks
         self._cleanup_hooks()
@@ -478,9 +548,12 @@ class ActivationExtractor:
         
         activation_list = []
         for layer_idx in sorted(layer_indices):
-            if f"layer_{layer_idx}" in self.activations:
-                # Use [CLS] token representation or mean pooling
-                layer_activations = self.activations[f"layer_{layer_idx}"][:, 0, :]  # [CLS] token
+            key = f"layer_{layer_idx}"
+            if key in self.activations:
+                hidden = self.activations[key]
+                layer_activations = _pool_hidden_states(
+                    hidden, attention_mask, self.pooling
+                )
                 activation_list.append(layer_activations)
         
         if activation_list:
@@ -495,21 +568,18 @@ class ActivationExtractor:
         
         def create_hook(layer_idx):
             def hook(module, input, output):
-                self.activations[f"layer_{layer_idx}"] = output.last_hidden_state
+                if hasattr(output, "last_hidden_state"):
+                    hidden = output.last_hidden_state
+                elif isinstance(output, tuple):
+                    hidden = output[0]
+                else:
+                    hidden = output
+                self.activations[f"layer_{layer_idx}"] = hidden
             return hook
         
-        # Hook into transformer layers
-        if hasattr(self.model, 'encoder') and hasattr(self.model.encoder, 'layer'):
-            # BERT-style model
-            layers = self.model.encoder.layer
-        elif hasattr(self.model, 'transformer') and hasattr(self.model.transformer, 'h'):
-            # GPT-style model
-            layers = self.model.transformer.h
-        elif hasattr(self.model, 'layers'):
-            # Generic model
-            layers = self.model.layers
-        else:
-            raise ValueError("Cannot identify model layers")
+        layers = _get_transformer_layers(self.model)
+        if layers is None:
+            raise ValueError("Cannot identify model transformer layers for activation hooks")
         
         # Set up hooks for specified layers
         if layer_indices is None:
@@ -517,7 +587,10 @@ class ActivationExtractor:
         
         for layer_idx in layer_indices:
             if layer_idx < len(layers):
-                hook = layers[layer_idx].register_forward_hook(create_hook(layer_idx))
+                mod = resolve_hook_module(
+                    self.model, layer_idx, self.activation_site
+                )
+                hook = mod.register_forward_hook(create_hook(layer_idx))
                 self.hooks.append(hook)
     
     def _cleanup_hooks(self):
@@ -542,10 +615,10 @@ class ActivationExtractor:
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save as PyTorch tensors
+        # Save as PyTorch tensors (caller may align names to dataframe sample_id)
         for i in range(activations.shape[0]):
             file_path = output_dir / f"{prefix}_{i}.pt"
-            torch.save(activations[i], file_path)
+            torch.save(activations[i].cpu(), file_path)
         
         logger.info(f"Saved {activations.shape[0]} activation tensors to {output_dir}")
 
@@ -619,18 +692,20 @@ class ModelIntegrationPipeline:
         # Extract activations
         activations = self.activation_extractor.extract_activations(combined_texts)
         
-        # Step 4: Save activations
+        # Step 4: Save activations (filenames follow sample_id for loader compatibility)
         logger.info("Step 3: Saving activations...")
         activations_dir = output_dir / "activations"
-        self.activation_extractor.save_activations(
-            activations, activations_dir, prefix="sample"
-        )
+        activations_dir.mkdir(parents=True, exist_ok=True)
+        for i in range(activations.shape[0]):
+            sid = int(df.iloc[i]['sample_id'])
+            torch.save(activations[i].cpu(), activations_dir / f"sample_{sid}.pt")
         
         # Step 5: Create activation mapping
         logger.info("Step 4: Creating activation mapping...")
         activation_mapping = {}
         for i in range(len(df)):
-            activation_mapping[i] = f"sample_{i}.pt"
+            sid = int(df.iloc[i]['sample_id'])
+            activation_mapping[sid] = f"sample_{sid}.pt"
         
         # Save mapping
         mapping_path = output_dir / "activation_mapping.json"

@@ -77,9 +77,10 @@ Thumbs.db
 *.log
 deception_results/
 quick_demo_results/
+# OpenAI/HF generated runs (large CSVs; .pt activations already ignored by *.pt)
+data/openai_runs/**/*.csv
+data/openai_runs/**/activation_mapping.json
 sample_data/activations.pt
-paper_figures/
-sample_data_for_graphs/
 *.pt
 *.pth
 *.pkl

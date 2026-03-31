@@ -72,8 +72,30 @@ import torch.nn.functional as F
 from typing import Dict, List, Tuple, Optional, Union
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score
+from sklearn.linear_model import LogisticRegression
 import json
 from pathlib import Path
+
+
+def binary_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = 15) -> float:
+    """Expected calibration error for binary labels (paper-style metric)."""
+    probs = np.asarray(probs).flatten().astype(np.float64)
+    labels = np.asarray(labels).flatten().astype(np.float64)
+    if len(probs) == 0:
+        return 0.0
+    bins = np.linspace(0.0, 1.0, n_bins + 1)
+    bin_ids = np.digitize(probs, bins, right=False) - 1
+    bin_ids = np.clip(bin_ids, 0, n_bins - 1)
+    ece = 0.0
+    n = len(probs)
+    for b in range(n_bins):
+        mask = bin_ids == b
+        if not np.any(mask):
+            continue
+        acc = labels[mask].mean()
+        conf = probs[mask].mean()
+        ece += (mask.sum() / n) * abs(acc - conf)
+    return float(ece)
 
 
 class DeceptionLinearProbe(nn.Module):
@@ -201,7 +223,9 @@ class LinearProbeTrainer:
                    epochs: int = 100,
                    batch_size: Optional[int] = None,
                    validation_split: float = 0.2,
-                   early_stopping_patience: int = 10) -> Dict:
+                   early_stopping_patience: int = 10,
+                   val_activations: Optional[torch.Tensor] = None,
+                   val_labels: Optional[torch.Tensor] = None) -> Dict:
         """
         Train a linear probe on deception detection.
         
@@ -210,8 +234,10 @@ class LinearProbeTrainer:
             labels: Binary labels [batch_size]
             epochs: Number of training epochs
             batch_size: Batch size (None for full batch)
-            validation_split: Fraction for validation
+            validation_split: Fraction for validation (ignored if val_activations given)
             early_stopping_patience: Epochs to wait for improvement
+            val_activations: Optional held-out activations (e.g. disjoint base items)
+            val_labels: Optional held-out labels
             
         Returns:
             Dictionary with training results and metrics
@@ -220,12 +246,19 @@ class LinearProbeTrainer:
         activations = activations.to(self.device)
         labels = labels.to(self.device)
         
-        # Split into train/validation
-        n_train = int(len(activations) * (1 - validation_split))
-        train_activations = activations[:n_train]
-        train_labels = labels[:n_train]
-        val_activations = activations[n_train:]
-        val_labels = labels[n_train:]
+        if val_activations is not None and val_labels is not None:
+            if len(val_activations) == 0:
+                raise ValueError("val_activations is empty; disable val split or add samples.")
+            train_activations = activations
+            train_labels = labels
+            val_activations = val_activations.to(self.device)
+            val_labels = val_labels.to(self.device)
+        else:
+            n_train = int(len(activations) * (1 - validation_split))
+            train_activations = activations[:n_train]
+            train_labels = labels[:n_train]
+            val_activations = activations[n_train:]
+            val_labels = labels[n_train:]
         
         # Initialize probe
         probe = DeceptionLinearProbe(activations.shape[1]).to(self.device)
@@ -328,6 +361,9 @@ class LinearProbeTrainer:
             
             final_auc = roc_auc_score(val_labels.cpu().numpy(), 
                                     final_outputs.cpu().numpy())
+            final_ece = binary_ece(
+                final_outputs.cpu().numpy(), val_labels.cpu().numpy()
+            )
         
         results = {
             'probe': probe,
@@ -338,6 +374,7 @@ class LinearProbeTrainer:
                 'recall': recall,
                 'f1': f1,
                 'auc': final_auc,
+                'ece': final_ece,
                 'val_loss': best_val_loss
             },
             'best_epoch': len(history['val_loss']) - patience_counter - 1
@@ -348,6 +385,8 @@ class LinearProbeTrainer:
     def train_multi_layer_probes(self, activations: torch.Tensor,
                                 labels: torch.Tensor,
                                 layer_names: Optional[List[str]] = None,
+                                val_activations: Optional[torch.Tensor] = None,
+                                val_labels: Optional[torch.Tensor] = None,
                                 **train_kwargs) -> Dict:
         """
         Train probes for multiple layers.
@@ -356,6 +395,8 @@ class LinearProbeTrainer:
             activations: Activation tensor [batch_size, num_layers, hidden_dim]
             labels: Binary labels [batch_size]
             layer_names: Names for each layer
+            val_activations: Optional [batch_val, num_layers, hidden_dim]
+            val_labels: Optional [batch_val]
             **train_kwargs: Additional training arguments
             
         Returns:
@@ -373,9 +414,18 @@ class LinearProbeTrainer:
             
             # Extract activations for this layer
             layer_activations = activations[:, layer_idx, :]
+            layer_val_act = None
+            layer_val_lab = None
+            if val_activations is not None and val_labels is not None:
+                layer_val_act = val_activations[:, layer_idx, :]
+                layer_val_lab = val_labels
             
             # Train probe
-            layer_results = self.train_probe(layer_activations, labels, **train_kwargs)
+            layer_results = self.train_probe(
+                layer_activations, labels,
+                val_activations=layer_val_act, val_labels=layer_val_lab,
+                **train_kwargs
+            )
             
             results[layer_name] = {
                 'layer_idx': layer_idx,
@@ -417,8 +467,9 @@ class LinearProbeTrainer:
             
             try:
                 auc = roc_auc_score(labels.cpu().numpy(), outputs.cpu().numpy())
-            except:
+            except Exception:
                 auc = 0.5
+            ece = binary_ece(outputs.cpu().numpy(), labels.cpu().numpy())
                 
         return {
             'accuracy': accuracy,
@@ -426,6 +477,7 @@ class LinearProbeTrainer:
             'recall': recall,
             'f1': f1,
             'auc': auc,
+            'ece': ece,
             'predictions': predictions.cpu().numpy(),
             'probabilities': outputs.cpu().numpy()
         }
@@ -492,3 +544,58 @@ class LinearProbeTrainer:
             'total_features': len(weights),
             'top_k': top_k
         }
+
+
+def train_sklearn_probes_all_layers(
+    train_activations: torch.Tensor,
+    train_labels: torch.Tensor,
+    test_activations: torch.Tensor,
+    test_labels: torch.Tensor,
+    C: float = 1.0,
+    max_iter: int = 2000,
+) -> Dict:
+    """
+    Paper-facing L2-regularized logistic regression per layer (sklearn).
+    Returns metrics and a unit-norm steering vector per layer (coef direction).
+    """
+    y_tr = train_labels.detach().cpu().numpy().astype(int)
+    y_te = test_labels.detach().cpu().numpy().astype(int)
+    n_layers = train_activations.shape[1]
+    out: Dict = {}
+    for li in range(n_layers):
+        X_tr = train_activations[:, li, :].detach().cpu().numpy()
+        X_te = test_activations[:, li, :].detach().cpu().numpy()
+        clf = LogisticRegression(
+            C=C, max_iter=max_iter, solver="lbfgs", class_weight="balanced"
+        )
+        clf.fit(X_tr, y_tr)
+        probs = clf.predict_proba(X_te)[:, 1]
+        preds = (probs >= 0.5).astype(int)
+        acc = accuracy_score(y_te, preds)
+        try:
+            auc = roc_auc_score(y_te, probs)
+        except Exception:
+            auc = 0.5
+        ece = binary_ece(probs, y_te.astype(float))
+        w = torch.tensor(clf.coef_.astype(np.float32).squeeze(0))
+        norm = w.norm().clamp(min=1e-12)
+        steering = (w / norm).numpy()
+        out[f"layer_{li}"] = {
+            "layer_idx": li,
+            "accuracy": float(acc),
+            "auc": float(auc),
+            "ece": float(ece),
+            "steering_vector": steering,
+        }
+    best = max(
+        ((k, v) for k, v in out.items() if k != "best_layer"),
+        key=lambda x: x[1]["auc"],
+    )
+    out["best_layer"] = {"name": best[0], **best[1]}
+    return out
+
+
+def normalized_probe_steering_vector(probe: DeceptionLinearProbe) -> torch.Tensor:
+    """Unit direction from PyTorch linear probe weights (deception-positive)."""
+    w = probe.get_weights().detach()
+    return w / w.norm().clamp(min=1e-12)
