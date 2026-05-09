@@ -88,3 +88,4 @@ sample_data/activations.pt
 .env.production
 secrets.yaml
 config.yaml
+*.pt
