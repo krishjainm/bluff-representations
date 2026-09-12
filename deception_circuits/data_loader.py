@@ -231,7 +231,8 @@ class DeceptionDataLoader:
 
     def load_csv(self, csv_path: Union[str, Path], 
                  activation_dir: Optional[Union[str, Path]] = None,
-                 max_samples: Optional[int] = None) -> Dict:
+                 max_samples: Optional[int] = None,
+                 research_mode: bool = False) -> Dict:
         """
         Load deception data from CSV file.
         
@@ -294,7 +295,11 @@ class DeceptionDataLoader:
 
         # Load activation data if activation directory is provided
         if activation_dir:
-            df = self._load_activations(df, activation_dir)
+            df = self._load_activations(df, activation_dir, strict=research_mode)
+        elif research_mode:
+            raise FileNotFoundError(
+                "research_mode requires activation_dir; synthetic activations are test/demo-only"
+            )
         elif 'activations' not in df.columns:
             df = self._fill_dummy_activations(df)
 
@@ -323,8 +328,8 @@ class DeceptionDataLoader:
         df['activations'] = acts
         return df
 
-    def _load_activations(self, df: pd.DataFrame, 
-                         activation_dir: Union[str, Path]) -> pd.DataFrame:
+    def _load_activations(self, df: pd.DataFrame,
+                         activation_dir: Union[str, Path], strict: bool = False) -> pd.DataFrame:
         """
         Load activation data for each sample from saved tensor files.
         
@@ -346,6 +351,8 @@ class DeceptionDataLoader:
             DataFrame with 'activations' column added containing torch tensors
         """
         activation_dir = Path(activation_dir)
+        if strict and not activation_dir.is_dir():
+            raise FileNotFoundError(f"Activation directory is missing: {activation_dir}")
         activations = []
         
         # Loop through each sample in the dataset
@@ -383,11 +390,22 @@ class DeceptionDataLoader:
                     break
                     
             if not activation_loaded:
+                if strict:
+                    raise FileNotFoundError(
+                        f"Missing activation for sample_id={sid} in {activation_dir}"
+                    )
                 # Create dummy activations if no file found
                 # This allows the framework to work even without activation data
                 # Shape: [num_layers, hidden_dim] - adjust dimensions as needed
                 dummy_activation = torch.randn(32, 768).to(self.device)  # Example: 32 layers, 768 hidden dim
                 activations.append(dummy_activation)
+
+        if strict:
+            shapes = {tuple(a.shape) for a in activations}
+            if len(shapes) != 1:
+                raise ValueError(f"Activation shape mismatch: {sorted(shapes)}")
+            if any(not torch.isfinite(a).all().item() for a in activations):
+                raise ValueError("Activation tensors contain NaN or Inf")
                 
         # Add activations column to the DataFrame
         df['activations'] = activations

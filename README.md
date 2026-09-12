@@ -1,4 +1,29 @@
-# Deception Circuits Research Infrastructure
+# Deception LLMs Research Infrastructure
+
+> **Research status:** The strict, validated V2 probe workflow is
+> `deception_circuits.paper`; historical modules below are legacy/experimental.
+> This repository does not establish a general “deception circuit,” and no
+> research command substitutes random activations for missing data.
+
+## Paper V2 workflow
+
+Copy `configs/paper_v2.yaml`, set it to a real canonical dataset and activation
+directory, and run:
+
+```bash
+uv sync
+deception-paper validate-data --config my_run.yaml
+deception-paper make-splits --config my_run.yaml
+deception-paper train-probes --config my_run.yaml
+deception-paper audit --config my_run.yaml
+```
+
+The V2 workflow requires one finite `[layers, hidden_size]` tensor per sample,
+uses group-safe frozen splits, chooses layers on validation only, and records
+config/environment/commit metadata. It does not download a model or make API
+calls. See [the protocol](docs/EXPERIMENT_PROTOCOL.md),
+[reproducibility instructions](docs/REPRODUCIBILITY.md), and the
+[review-response matrix](docs/REVIEW_RESPONSE_MATRIX.md).
 
 A comprehensive framework for discovering and manipulating deception circuits in LLM reasoning traces using linear probes and sparse autoencoders.
 

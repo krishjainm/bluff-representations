@@ -1,0 +1,17 @@
+# Copy this file and replace every path/model field for a real run.
+experiment_name: poker_predecision_v2
+dataset_path: data/poker_v2.csv
+activation_dir: data/activations/poker_v2_prompt_end
+output_dir: results/poker_predecision_v2
+seed: 2026
+# split_manifest_path: results/poker_predecision_v2/split_manifest.json
+group_column: split_group_id
+test_fraction: 0.20
+validation_fraction: 0.10
+probe_c: 1.0
+n_seeds: 5
+bootstrap_resamples: 1000
+activation_site: residual_stream
+activation_mode: prompt_end
+subject_model: REPLACE_WITH_EXACT_MODEL_ID
+model_revision: null

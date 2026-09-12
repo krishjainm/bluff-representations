@@ -1,7 +1,7 @@
 [project]
 name = "deception-llms"
 version = "0.1.0"
-description = "Add your description here"
+description = "Research infrastructure for leakage-aware experiments on bluff-like behavior in language models."
 readme = "README.md"
 requires-python = ">=3.10.13"
 dependencies = [
@@ -20,3 +20,6 @@ dependencies = [
     "torch>=2.10.0",
     "transformers>=4.57.6",
 ]
+
+[project.scripts]
+deception-paper = "deception_circuits.paper_cli:main"

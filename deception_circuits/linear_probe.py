@@ -67,6 +67,7 @@ This is the foundation of deception circuit discovery!
 """
 
 import torch
+import copy
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, List, Tuple, Optional, Union
@@ -320,8 +321,8 @@ class LinearProbeTrainer:
                 try:
                     val_auc = roc_auc_score(val_labels.cpu().numpy(), 
                                           val_outputs.cpu().numpy())
-                except:
-                    val_auc = 0.5
+                except ValueError as exc:
+                    raise ValueError("Validation split must contain both classes for AUROC") from exc
                     
             # Record metrics
             train_acc = train_correct / len(train_labels)
@@ -337,7 +338,9 @@ class LinearProbeTrainer:
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 patience_counter = 0
-                best_probe_state = probe.state_dict().copy()
+                # state_dict().copy() is shallow: tensor values keep mutating during
+                # later optimizer steps.  A real early-stop checkpoint needs a clone.
+                best_probe_state = copy.deepcopy(probe.state_dict())
             else:
                 patience_counter += 1
                 
@@ -364,12 +367,13 @@ class LinearProbeTrainer:
             final_ece = binary_ece(
                 final_outputs.cpu().numpy(), val_labels.cpu().numpy()
             )
+            final_accuracy = (final_preds == val_labels.long()).float().mean().item()
         
         results = {
             'probe': probe,
             'history': history,
             'final_metrics': {
-                'accuracy': val_acc,
+                'accuracy': final_accuracy,
                 'precision': precision,
                 'recall': recall,
                 'f1': f1,

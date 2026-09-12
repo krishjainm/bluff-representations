@@ -155,7 +155,8 @@ class DeceptionTrainingPipeline:
                           test_size: float = 0.2,
                           val_size: float = 0.0,
                           stratify_keys: Optional[List[str]] = None,
-                          run_sklearn_baseline: bool = True) -> Dict:
+                          run_sklearn_baseline: bool = True,
+                          research_mode: bool = True) -> Dict:
         """
         Run complete deception circuit experiment.
         
@@ -206,7 +207,8 @@ class DeceptionTrainingPipeline:
         data_results = self.data_loader.load_csv(
             csv_path=csv_path,
             activation_dir=activation_dir,
-            max_samples=max_samples
+            max_samples=max_samples,
+            research_mode=research_mode,
         )
         
         df = data_results['dataframe']
@@ -379,8 +381,14 @@ class DeceptionTrainingPipeline:
             )
             test_results[layer_name] = test_metrics
             
-        # Find best performing layer
-        best_layer = max(test_results.items(), key=lambda x: x[1]['auc'])
+        # The test split is for one final evaluation only.  Select the layer
+        # using validation metrics, never its test AUROC.
+        if val_activations is None or val_labels is None:
+            raise ValueError("research probe selection requires an explicit validation split")
+        best_layer_name, best_layer_record = max(
+            multi_layer.items(), key=lambda x: x[1]['final_auc']
+        )
+        best_layer = (best_layer_name, test_results[best_layer_name])
 
         sklearn_block = {}
         if run_sklearn_baseline:
@@ -394,7 +402,9 @@ class DeceptionTrainingPipeline:
             'test_results': test_results,
             'best_layer': {
                 'layer_name': best_layer[0],
-                'metrics': best_layer[1]
+                'metrics': best_layer[1],
+                'selection_partition': 'validation',
+                'validation_auc': best_layer_record['final_auc'],
             },
             'summary': {
                 'num_layers': num_layers,
