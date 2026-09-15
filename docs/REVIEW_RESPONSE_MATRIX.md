@@ -14,3 +14,8 @@
 | SAE diagnostics and feature examples | not yet implemented | do not make SAE claims from legacy code |
 | Figures from real artifacts | not yet implemented | no publication figures should be generated yet |
 | Concrete examples, labeling prompts, composition | blocked on real dataset | store with the data release |
+| Early stopping and stale metrics | fixed in legacy probe path | deep copied checkpoint; metrics recomputed after restore |
+| Calibration, PR-AUC, and uncertainty | partially fixed | strict path has PR-AUC and grouped CIs; calibration and learning curves remain |
+| Exact intervention timing and dose | not yet implemented | must be config-recorded and evaluated on held-out paired prompts |
+| Quality degradation versus behavioral change | not yet implemented | task validity/refusal/repetition/quality must accompany causal results |
+| Overstated terminology / reasoning-trace framing | partially fixed | README guardrail; manuscript rewrite remains |

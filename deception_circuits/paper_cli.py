@@ -10,7 +10,7 @@ def main() -> None:
     p = argparse.ArgumentParser(); p.add_argument("command", choices=["validate-data", "make-splits", "train-probes", "audit"]); p.add_argument("--config", required=True)
     a = p.parse_args(); c = PaperConfig.from_yaml(a.config); out = Path(c.output_dir); out.mkdir(parents=True, exist_ok=True)
     if a.command == "audit":
-        errors = audit_run(out); print("PASS" if not errors else "FAIL\n" + "\n".join(errors)); raise SystemExit(bool(errors))
+        errors = audit_run(out, validate_dataset(c.dataset_path), c); print("PASS" if not errors else "FAIL\n" + "\n".join(errors)); raise SystemExit(bool(errors))
     df = validate_dataset(c.dataset_path)
     if a.command == "validate-data": print(f"PASS: {len(df)} rows"); return
     manifest_path = Path(c.split_manifest_path or out / "split_manifest.json")

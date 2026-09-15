@@ -92,5 +92,6 @@ sample_data/activations.pt
 # API keys and secrets (extra safety)
 .env.local
 .env.production
+Claude-API-KEYS.md
 secrets.yaml
 config.yaml

@@ -32,7 +32,7 @@ def _fixture(tmp_path: Path):
 
 def test_paper_probe_is_group_safe_and_validation_selected(tmp_path):
     csv, activation_dir = _fixture(tmp_path)
-    config = PaperConfig("test", str(csv), str(activation_dir), str(tmp_path / "out"), n_seeds=2)
+    config = PaperConfig("test", str(csv), str(activation_dir), str(tmp_path / "out"), n_seeds=2, bootstrap_resamples=30)
     df = validate_dataset(csv)
     manifest = make_split_manifest(df, config)
     split_by_id = {sid: name for name in ("train", "validation", "test") for sid in manifest[name]}
@@ -41,6 +41,8 @@ def test_paper_probe_is_group_safe_and_validation_selected(tmp_path):
     assert result["selection_partition"] == "validation"
     assert result["test_partition_used_for_selection"] is False
     assert len(result["runs"]) == 2
+    assert result["runs"][0]["test_auroc_grouped_ci"]["valid_resamples"] > 0
+    assert "prompt_text" in result["baselines"]
 
 
 def test_missing_activation_is_a_hard_error(tmp_path):

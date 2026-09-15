@@ -12,7 +12,7 @@ import platform
 import random
 import subprocess
 import sys
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
@@ -27,6 +27,9 @@ from sklearn.metrics import (accuracy_score, average_precision_score,
                              f1_score, matthews_corrcoef, precision_score,
                              recall_score, roc_auc_score)
 from sklearn.model_selection import GroupShuffleSplit
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import OneHotEncoder
 
 REQUIRED_COLUMNS = {"sample_id", "base_item_id", "statement", "response", "label", "scenario"}
 
@@ -53,6 +56,19 @@ class PaperConfig:
     activation_mode: str = "prompt_end"
     subject_model: str = "UNSPECIFIED"
     model_revision: str | None = None
+    tokenizer_revision: str | None = None
+    activation_layers: str = "all"
+    max_sequence_length: int | None = None
+    prompt_template_id: str = "unspecified"
+    probe_type: str = "logistic_regression"
+    sae_config: dict[str, Any] = field(default_factory=dict)
+    steering_direction_source: str | None = None
+    intervention_layer: int | None = None
+    intervention_site: str | None = None
+    intervention_token_policy: str | None = None
+    intervention_strengths: list[float] = field(default_factory=list)
+    decoding_settings: dict[str, Any] = field(default_factory=dict)
+    nuisance_columns: list[str] = field(default_factory=list)
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "PaperConfig":
@@ -182,6 +198,70 @@ def _metrics(y: np.ndarray, p: np.ndarray) -> dict[str, Any]:
             "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)}}
 
 
+def grouped_bootstrap_ci(
+    y: np.ndarray, probabilities: np.ndarray, groups: Iterable[Any], *, seed: int,
+    n_resamples: int = 1000, metric: str = "auroc",
+) -> dict[str, Any]:
+    """Grouped percentile CI for AUROC/PR-AUC, rejecting invalid resamples.
+
+    Sampling groups rather than rows avoids presenting clustered poker hands or
+    paired items as independent observations.
+    """
+    y, probabilities = np.asarray(y), np.asarray(probabilities)
+    groups = np.asarray(list(groups))
+    if not (len(y) == len(probabilities) == len(groups)):
+        raise ResearchIntegrityError("Bootstrap inputs must have equal length")
+    score = {"auroc": roc_auc_score, "pr_auc": average_precision_score}.get(metric)
+    if score is None:
+        raise ValueError("metric must be auroc or pr_auc")
+    unique = np.unique(groups)
+    rng = np.random.default_rng(seed)
+    values: list[float] = []
+    for _ in range(n_resamples):
+        selected = rng.choice(unique, size=len(unique), replace=True)
+        idx = np.concatenate([np.flatnonzero(groups == group) for group in selected])
+        if len(np.unique(y[idx])) == 2:
+            values.append(float(score(y[idx], probabilities[idx])))
+    if not values:
+        raise ResearchIntegrityError("No valid grouped bootstrap resamples; check class/group distribution")
+    return {"metric": metric, "lower": float(np.quantile(values, .025)),
+            "upper": float(np.quantile(values, .975)), "valid_resamples": len(values),
+            "requested_resamples": n_resamples}
+
+
+def _text_baseline(train_text: pd.Series, y_train: np.ndarray, test_text: pd.Series, y_test: np.ndarray, seed: int) -> dict[str, Any]:
+    classifier = Pipeline([
+        ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
+        ("logistic", LogisticRegression(class_weight="balanced", max_iter=5000, random_state=seed)),
+    ])
+    classifier.fit(train_text.astype(str), y_train)
+    return _metrics(y_test, classifier.predict_proba(test_text.astype(str))[:, 1])
+
+
+def run_baselines(df: pd.DataFrame, manifest: dict[str, Any], config: PaperConfig) -> dict[str, Any]:
+    """Cheap leakage/confound baselines, fit only on training rows."""
+    train = df.set_index("sample_id").loc[manifest["train"]]
+    test = df.set_index("sample_id").loc[manifest["test"]]
+    y_train, y_test = train.label.to_numpy(int), test.label.to_numpy(int)
+    result: dict[str, Any] = {"majority_class_accuracy": float(max(np.mean(y_test == 0), np.mean(y_test == 1)))}
+    result["prompt_text"] = _text_baseline(train.statement, y_train, test.statement, y_test, config.seed)
+    # This is a deliberately diagnostic baseline, never a pre-decision claim.
+    result["response_text_diagnostic"] = _text_baseline(train.response, y_train, test.response, y_test, config.seed)
+    columns = [c for c in config.nuisance_columns if c in df.columns]
+    if columns:
+        # String coercion makes categorical nuisance variables explicit and avoids
+        # interpreting arbitrary IDs as ordinal measurements.
+        encoder = OneHotEncoder(handle_unknown="ignore")
+        x_train = encoder.fit_transform(train[columns].fillna("__MISSING__").astype(str))
+        x_test = encoder.transform(test[columns].fillna("__MISSING__").astype(str))
+        model = LogisticRegression(class_weight="balanced", max_iter=5000, random_state=config.seed)
+        model.fit(x_train, y_train)
+        result["nuisance_only"] = {"columns": columns, **_metrics(y_test, model.predict_proba(x_test)[:, 1])}
+    else:
+        result["nuisance_only"] = {"status": "not_run", "reason": "no configured nuisance columns available"}
+    return result
+
+
 def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: dict[str, Any], config: PaperConfig) -> dict[str, Any]:
     """Select layers solely on validation, then evaluate frozen choices on test."""
     index = {sid: i for i, sid in enumerate(df.sample_id)}
@@ -191,6 +271,8 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
     xtr, ytr = take("train"); xva, yva = take("validation"); xte, yte = take("test")
     if any(len(np.unique(y)) != 2 for y in (ytr, yva, yte)):
         raise ResearchIntegrityError("Every partition needs both labels for a paper probe run")
+    group_col = manifest.get("group_column", "base_item_id")
+    test_groups = df.iloc[[index[s] for s in manifest["test"]]][group_col].to_numpy()
     runs = []
     for seed in range(config.seed, config.seed + config.n_seeds):
         val_scores, models = [], []
@@ -200,11 +282,15 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
             val_scores.append(_metrics(yva, clf.predict_proba(xva[:, layer])[:, 1])["auroc"]); models.append(clf)
         selected = int(np.argmax(val_scores))
         test_prob = models[selected].predict_proba(xte[:, selected])[:, 1]
-        runs.append({"seed": seed, "selected_layer": selected, "validation_auroc": val_scores[selected], "test": _metrics(yte, test_prob)})
+        runs.append({"seed": seed, "selected_layer": selected, "validation_auroc": val_scores[selected],
+                     "test": _metrics(yte, test_prob),
+                     "test_auroc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="auroc"),
+                     "test_pr_auc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="pr_auc")})
     return {"selection_partition": "validation", "test_partition_used_for_selection": False,
             "n_train": len(ytr), "n_validation": len(yva), "n_test": len(yte), "runs": runs,
             "test_auroc_mean": float(np.mean([r["test"]["auroc"] for r in runs])),
-            "test_pr_auc_mean": float(np.mean([r["test"]["pr_auc"] for r in runs]))}
+            "test_pr_auc_mean": float(np.mean([r["test"]["pr_auc"] for r in runs])),
+            "baselines": run_baselines(df, manifest, config)}
 
 
 def write_run_metadata(config: PaperConfig, output_dir: Path) -> None:
@@ -218,12 +304,27 @@ def write_run_metadata(config: PaperConfig, output_dir: Path) -> None:
     (output_dir / "run_metadata.json").write_text(json.dumps(meta, indent=2) + "\n")
 
 
-def audit_run(output_dir: str | Path) -> list[str]:
+def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: PaperConfig | None = None) -> list[str]:
     root = Path(output_dir); failures = []
-    for name in ("resolved_config.yaml", "run_metadata.json", "split_manifest.json", "probe_results.json"):
+    manifest_file = Path(config.split_manifest_path) if config and config.split_manifest_path else root / "split_manifest.json"
+    for name in ("resolved_config.yaml", "run_metadata.json", "probe_results.json"):
         if not (root / name).is_file(): failures.append(f"missing {name}")
+    if not manifest_file.is_file():
+        failures.append(f"missing split manifest: {manifest_file}")
     if not failures:
         result = json.loads((root / "probe_results.json").read_text())
         if result.get("selection_partition") != "validation" or result.get("test_partition_used_for_selection"):
             failures.append("probe selection is not validation-only")
+        if config is not None and len(result.get("runs", [])) != config.n_seeds:
+            failures.append("number of completed probe seeds does not match config")
+        if any("test_auroc_grouped_ci" not in run for run in result.get("runs", [])):
+            failures.append("grouped AUROC confidence intervals are missing")
+        if "baselines" not in result:
+            failures.append("baseline results are missing")
+        manifest = json.loads(manifest_file.read_text())
+        if df is not None:
+            try:
+                assert_split_integrity(df, manifest)
+            except ResearchIntegrityError as exc:
+                failures.append(f"split integrity failure: {exc}")
     return failures
