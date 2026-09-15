@@ -9,10 +9,10 @@
 #
 # PIN THE REVISION before running. An unpinned model id is not reproducible, and
 # the extraction manifest records whatever you put here.
-experiment_name: poker_bluff_judge_question_llama31_8b
+experiment_name: poker_bluff_judge_question_mistral7b_v03
 dataset_path: data/derived/poker_bluff_judge_question_v1.csv
-activation_dir: data/activations/poker_bluff_judge_question_llama31_8b_prompt_end
-output_dir: results/poker_bluff_judge_question_llama31_8b
+activation_dir: data/activations/poker_bluff_judge_question_mistral7b_v03_prompt_end
+output_dir: results/poker_bluff_judge_question_mistral7b_v03
 seed: 2026
 
 # --- splits: group-safe and label-stratified; verified on this dataset to give
@@ -33,9 +33,9 @@ learning_curve_subsamples: 5
 # --- extraction
 # Instruct rather than base: the prompt issues an explicit output-format
 # instruction, so the base model is a different experiment. Record whichever you use.
-subject_model: meta-llama/Llama-3.1-8B-Instruct
-model_revision: REPLACE_WITH_PINNED_COMMIT_SHA
-tokenizer_revision: REPLACE_WITH_PINNED_COMMIT_SHA
+subject_model: mistralai/Mistral-7B-Instruct-v0.3
+model_revision: c170c708c41dac9275d15a8fff4eca08d52bab71
+tokenizer_revision: c170c708c41dac9275d15a8fff4eca08d52bab71
 # bfloat16: an 8B model is ~16 GB in bf16 versus ~32 GB in fp32. Activations
 # are stored float32 either way, so this costs no artifact precision.
 torch_dtype: bfloat16

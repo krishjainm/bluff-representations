@@ -1,5 +1,5 @@
 # Real conference run: Llama-3.1-8B on the adapted normalized_poker_gpt4o dataset.
-# Prompt variant: judge_question
+# Prompt variant: neutral_state
 #
 # Run this on a rented GPU. Requirements measured on the real data:
 #   44,631 forward passes, ~9.0M tokens of prefill
@@ -9,10 +9,10 @@
 #
 # PIN THE REVISION before running. An unpinned model id is not reproducible, and
 # the extraction manifest records whatever you put here.
-experiment_name: poker_bluff_judge_question_llama31_8b
-dataset_path: data/derived/poker_bluff_judge_question_v1.csv
-activation_dir: data/activations/poker_bluff_judge_question_llama31_8b_prompt_end
-output_dir: results/poker_bluff_judge_question_llama31_8b
+experiment_name: poker_bluff_neutral_state_mistral7b_v03
+dataset_path: data/derived/poker_bluff_neutral_state_v1.csv
+activation_dir: data/activations/poker_bluff_neutral_state_mistral7b_v03_prompt_end
+output_dir: results/poker_bluff_neutral_state_mistral7b_v03
 seed: 2026
 
 # --- splits: group-safe and label-stratified; verified on this dataset to give
@@ -33,9 +33,9 @@ learning_curve_subsamples: 5
 # --- extraction
 # Instruct rather than base: the prompt issues an explicit output-format
 # instruction, so the base model is a different experiment. Record whichever you use.
-subject_model: meta-llama/Llama-3.1-8B-Instruct
-model_revision: REPLACE_WITH_PINNED_COMMIT_SHA
-tokenizer_revision: REPLACE_WITH_PINNED_COMMIT_SHA
+subject_model: mistralai/Mistral-7B-Instruct-v0.3
+model_revision: c170c708c41dac9275d15a8fff4eca08d52bab71
+tokenizer_revision: c170c708c41dac9275d15a8fff4eca08d52bab71
 # bfloat16: an 8B model is ~16 GB in bf16 versus ~32 GB in fp32. Activations
 # are stored float32 either way, so this costs no artifact precision.
 torch_dtype: bfloat16
@@ -47,11 +47,12 @@ activation_layers: all
 # Longest observed prompt is ~230 estimated tokens; 512 leaves headroom without
 # risking a truncation that would move the decision boundary.
 max_sequence_length: 512
-prompt_template_id: poker_bluff_judgement_judge_question_v1
-# The prompt ends at the forced-choice answer position, not a poker action.
-decision_boundary_marker: "Answer:"
+prompt_template_id: poker_bluff_judgement_neutral_state_v1
+# The neutral variant asks nothing, so there is no answer position. The prompt
+# ends at the stated action and that final token is the read position.
+decision_boundary_marker: "Raise."
 # The rendered prompt must end at the marker above. Verified on the real data.
-prompt_template: "{statement}\nAnswer:"
+prompt_template: "{statement}"
 
 probe_type: logistic_regression
 
@@ -71,13 +72,14 @@ sae_config:
 sae_top_n_features: 10
 sae_stability_seeds: [0, 1, 2]
 
-# --- causal intervention. The endpoint is the model's own answer distribution.
+# --- causal intervention: DELIBERATELY DISABLED for this variant.
+# The neutral prompt asks the model nothing, so there is no forced choice to
+# measure and no behavioural endpoint independent of the probe. Running the
+# causal suite here would have nothing to score. This variant exists to answer
+# one question -- how much of the probe's performance survives when the prompt
+# does not name "bluff" -- and that is a probe comparison, not a causal one.
+# Empty strengths keep the stage unrun and keep the audit from demanding it.
 steering_direction_source: probe_train_partition
-intervention_layer: null
-intervention_site: block
-intervention_token_policy: prompt_end
-intervention_strengths: [0.5, 1.0, 2.0, 4.0, 8.0]
-causal_eval_size: 1000
-endpoint_options: ["Yes", "No"]
-endpoint_positive_option: "Yes"
-causal_nuisance_column: made_hand
+intervention_strengths: []
+endpoint_options: []
+endpoint_positive_option: null

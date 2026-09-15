@@ -78,6 +78,10 @@ class PaperConfig:
     max_sequence_length: int | None = None
     prompt_template_id: str = "unspecified"
     decision_boundary_marker: str = "Action:"
+    # None keeps the mode-appropriate default ("{statement}\nAction:"). Set this
+    # when the prompt needs a different scaffold, and keep it consistent with
+    # decision_boundary_marker: the rendered prompt must end at that marker.
+    prompt_template: str | None = None
     # Subject-model weight dtype: float32 | float16 | bfloat16. Activations are
     # always stored float32, so this trades model memory and speed only.
     torch_dtype: str = "float32"

@@ -51,6 +51,8 @@ prompt_template_id: poker_bluff_judgement_neutral_state_v1
 # The neutral variant asks nothing, so there is no answer position. The prompt
 # ends at the stated action and that final token is the read position.
 decision_boundary_marker: "Raise."
+# The rendered prompt must end at the marker above. Verified on the real data.
+prompt_template: "{statement}"
 
 probe_type: logistic_regression
 

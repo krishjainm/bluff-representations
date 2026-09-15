@@ -190,7 +190,7 @@ def paper_config_spec_fields(config: Any) -> dict[str, Any]:
         layer_indices = tuple(sorted({int(p) for p in layers.replace(",", " ").split()}))
     else:
         layer_indices = tuple(sorted({int(p) for p in layers}))
-    return {
+    fields: dict[str, Any] = {
         "subject_model": str(getattr(config, "subject_model", "")),
         "activation_mode": str(getattr(config, "activation_mode", "prompt_end")),
         "activation_site": site,
@@ -202,6 +202,12 @@ def paper_config_spec_fields(config: Any) -> dict[str, Any]:
         "decision_boundary_marker": str(getattr(config, "decision_boundary_marker", "Action:")),
         "torch_dtype": str(getattr(config, "torch_dtype", "float32")),
     }
+    # Only override the dataclass default when the config actually sets a template;
+    # passing None through would clobber the default with None.
+    template = getattr(config, "prompt_template", None)
+    if template:
+        fields["prompt_template"] = str(template)
+    return fields
 
 
 @dataclass(frozen=True)

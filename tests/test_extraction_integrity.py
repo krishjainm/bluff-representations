@@ -301,6 +301,35 @@ def test_placeholder_subject_model_is_refused():
         ExtractionSpec(subject_model="REPLACE_WITH_EXACT_MODEL_ID")
 
 
+def test_shipped_real_configs_build_a_valid_extraction_spec():
+    """The committed run configs must survive exactly what the CLI does to them.
+
+    prompt_template was previously unreachable from a config, so every real config
+    with a non-default decision boundary hard-failed at spec construction.
+    """
+    from deception_circuits.paper import PaperConfig
+
+    root = Path(__file__).resolve().parents[1] / "configs"
+    shipped = sorted(root.glob("real_*.yaml"))
+    assert shipped, "expected committed real-run configs"
+    for path in shipped:
+        config = PaperConfig.from_yaml(path)
+        spec = ExtractionSpec.from_paper_config(config)
+        # Either the template appends a literal suffix ending at the boundary, or it
+        # ends at the placeholder and the boundary comes from the row's own text --
+        # which is why the binding check is per-row, in render_extraction_prompt.
+        suffix = spec.prompt_template.rsplit("}", 1)[-1]
+        assert (not suffix.strip()
+                or suffix.rstrip().endswith(spec.decision_boundary_marker)), path.name
+        assert spec.torch_dtype in ("float16", "bfloat16", "float32"), path.name
+        # And a row that ends at the boundary must render with the read position last.
+        row = pd.Series({"statement": f"game state\n{spec.decision_boundary_marker}"
+                         if not suffix.strip() else "game state", "response": "x"})
+        rendering = render_extraction_prompt(row, spec, StubProvider())
+        assert rendering.text.rstrip().endswith(spec.decision_boundary_marker), path.name
+        assert rendering.token_index == rendering.n_tokens - 1, path.name
+
+
 def test_dtype_is_validated_rather_than_silently_defaulted():
     """A typo must fail, not quietly load the model in float32 at double memory."""
     with pytest.raises(ResearchIntegrityError, match="torch_dtype must be one of"):
