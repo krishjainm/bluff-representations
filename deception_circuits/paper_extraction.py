@@ -33,6 +33,9 @@ PRE_DECISION_MODES = ("prompt_end", "decision_token_prelogit", "mean_prompt")
 # Explicitly diagnostic: reads the recorded response text.  Never the paper primary.
 DIAGNOSTIC_MODES = ("response_token",)
 ACTIVATION_MODES = PRE_DECISION_MODES + DIAGNOSTIC_MODES
+# Weight dtypes for loading the subject model. Activations are always stored as
+# float32 regardless, so this trades model memory and speed, not artifact precision.
+TORCH_DTYPES = ("float32", "float16", "bfloat16")
 
 DEFAULT_PREDECISION_TEMPLATE = "{statement}\nAction:"
 DEFAULT_RESPONSE_TEMPLATE = "{statement}\nAction:{response}"
@@ -125,6 +128,9 @@ class ExtractionSpec:
                     "response_token template must place {response} immediately after the "
                     f"decision boundary {self.decision_boundary_marker!r}"
                 )
+        if self.torch_dtype not in TORCH_DTYPES:
+            raise ResearchIntegrityError(
+                f"torch_dtype must be one of {list(TORCH_DTYPES)}, got {self.torch_dtype!r}")
         if self.max_sequence_length is not None and self.max_sequence_length < 1:
             raise ResearchIntegrityError("max_sequence_length must be >= 1 when set")
         if self.layer_indices is not None:
@@ -194,6 +200,7 @@ def paper_config_spec_fields(config: Any) -> dict[str, Any]:
         "max_sequence_length": getattr(config, "max_sequence_length", None),
         "prompt_template_id": str(getattr(config, "prompt_template_id", "unspecified")),
         "decision_boundary_marker": str(getattr(config, "decision_boundary_marker", "Action:")),
+        "torch_dtype": str(getattr(config, "torch_dtype", "float32")),
     }
 
 
@@ -593,7 +600,9 @@ class TransformersHiddenStateProvider:
         self.tokenizer = AutoTokenizer.from_pretrained(
             spec.subject_model, revision=spec.tokenizer_revision or spec.model_revision
         )
-        dtype = getattr(torch, spec.torch_dtype, torch.float32)
+        # Validated in ExtractionSpec, so a typo has already failed loudly rather
+        # than silently downgrading to float32 and quietly doubling memory.
+        dtype = getattr(torch, spec.torch_dtype)
         self.model = AutoModelForCausalLM.from_pretrained(
             spec.subject_model, revision=spec.model_revision, dtype=dtype
         )

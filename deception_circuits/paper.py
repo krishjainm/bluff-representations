@@ -78,6 +78,9 @@ class PaperConfig:
     max_sequence_length: int | None = None
     prompt_template_id: str = "unspecified"
     decision_boundary_marker: str = "Action:"
+    # Subject-model weight dtype: float32 | float16 | bfloat16. Activations are
+    # always stored float32, so this trades model memory and speed only.
+    torch_dtype: str = "float32"
     probe_type: str = "logistic_regression"
     sae_config: dict[str, Any] = field(default_factory=dict)
     sae_top_n_features: int = 5

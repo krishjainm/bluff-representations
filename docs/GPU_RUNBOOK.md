@@ -14,12 +14,24 @@ activation buffers. It is also a gated repo.
 
 | Resource | Requirement | Why |
 |---|---|---|
-| VRAM | ≥ 20 GB | fp16 weights (~16 GB) plus activation buffers |
+| VRAM | ≥ 20 GB | bf16 weights (~16 GB) plus activation buffers. The configs set `torch_dtype: bfloat16`; fp32 would be ~32 GB. An A100 (40 or 80 GB) has ample headroom. |
 | Disk | ~50 GB free | 23.4 GB of activations per prompt variant, two variants |
 | Hugging Face | a token with Llama-3.1 access | the repo is gated |
 | Time | measured: 44,631 forward passes, ~9.0M tokens of prefill, per variant | no generation is involved in extraction |
 
 A single 24 GB card (A10G, L4, 3090, 4090) is sufficient. No multi-GPU needed.
+
+### Throughput note
+
+Extraction is **one forward pass per sample, unbatched** — deliberately, because
+the recorded `token_index` must refer to an unpadded position and batching would
+introduce padding into exactly the place the leakage guarantees live. On an A100
+expect roughly 30–60 ms per prompt, so about **35–50 minutes per variant**
+(44,631 prompts), or ~1.5 h for both. That is dominated by per-call overhead
+rather than compute, so a batched implementation would be several times faster if
+the run ever needs to scale up — but it would need careful left-padding index
+handling and a new round of boundary tests. At this dataset size it is not worth
+the correctness risk.
 
 ## Step 0 — environment
 

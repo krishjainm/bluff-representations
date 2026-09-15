@@ -36,6 +36,9 @@ learning_curve_subsamples: 5
 subject_model: meta-llama/Llama-3.1-8B-Instruct
 model_revision: REPLACE_WITH_PINNED_COMMIT_SHA
 tokenizer_revision: REPLACE_WITH_PINNED_COMMIT_SHA
+# bfloat16: an 8B model is ~16 GB in bf16 versus ~32 GB in fp32. Activations
+# are stored float32 either way, so this costs no artifact precision.
+torch_dtype: bfloat16
 activation_site: residual_stream
 activation_mode: prompt_end
 # All layers: layerwise probing is the primary experiment, so a subset would

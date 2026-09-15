@@ -301,6 +301,19 @@ def test_placeholder_subject_model_is_refused():
         ExtractionSpec(subject_model="REPLACE_WITH_EXACT_MODEL_ID")
 
 
+def test_dtype_is_validated_rather_than_silently_defaulted():
+    """A typo must fail, not quietly load the model in float32 at double memory."""
+    with pytest.raises(ResearchIntegrityError, match="torch_dtype must be one of"):
+        _spec(torch_dtype="bfloat_16")
+    assert _spec(torch_dtype="bfloat16").torch_dtype == "bfloat16"
+
+
+def test_dtype_is_reachable_from_a_paper_config(tmp_path):
+    csv = _dataset(tmp_path, n_groups=3)
+    config = _config(csv, tmp_path / "acts", tmp_path, torch_dtype="bfloat16")
+    assert ExtractionSpec.from_paper_config(config).torch_dtype == "bfloat16"
+
+
 def test_spec_fingerprint_changes_with_every_scientific_choice():
     base = _spec()
     variants = [
@@ -311,6 +324,7 @@ def test_spec_fingerprint_changes_with_every_scientific_choice():
         _spec(max_sequence_length=256),
         _spec(prompt_template="Hand: {statement}\nAction:"),
         _spec(prompt_template_id="other"),
+        _spec(torch_dtype="bfloat16"),
     ]
     fingerprints = {base.fingerprint()} | {v.fingerprint() for v in variants}
     assert len(fingerprints) == len(variants) + 1
