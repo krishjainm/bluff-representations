@@ -18,6 +18,7 @@ deception-paper make-splits --config my_run.yaml
 deception-paper collect-activations --config my_run.yaml --confirm-model-load
 deception-paper train-probes --config my_run.yaml
 deception-paper analyze-confounds --config my_run.yaml
+deception-paper run-interventions --config my_run.yaml --confirm-model-load
 deception-paper audit --config my_run.yaml
 ```
 

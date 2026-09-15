@@ -5,6 +5,7 @@ import argparse
 import json
 from pathlib import Path
 
+import pandas as pd
 import yaml
 
 from .paper import (PaperConfig, audit_notes, audit_run, load_activations, make_split_manifest,
@@ -12,7 +13,7 @@ from .paper import (PaperConfig, audit_notes, audit_run, load_activations, make_
 from .paper_extraction import ExtractionSpec, run_extraction
 
 COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes",
-            "analyze-confounds", "audit")
+            "analyze-confounds", "run-interventions", "audit")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -22,8 +23,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--device", default="cpu", help="collect-activations: torch device")
     parser.add_argument(
         "--confirm-model-load", action="store_true",
-        help="collect-activations: required acknowledgement that this loads subject-model "
-             "weights (a potentially large download) and runs real forward passes",
+        help="collect-activations / run-interventions: required acknowledgement that this loads "
+             "subject-model weights (a potentially large download) and runs real forward passes",
     )
     parser.add_argument(
         "--no-resume", action="store_true",
@@ -111,6 +112,74 @@ def main() -> None:
         print(out / "confound_results.json")
         if unavailable:
             print("unavailable without more metadata: " + ", ".join(unavailable))
+        return
+
+    if args.command == "run-interventions":
+        from .paper_causal import (ForcedChoiceEndpoint, build_direction_set,
+                                   default_conditions, nuisance_condition, run_causal_suite)
+
+        path = _manifest_path(config, out)
+        probe_results = out / "probe_results.json"
+        if not path.is_file() or not probe_results.is_file():
+            raise FileNotFoundError(
+                "run-interventions needs a split manifest and probe_results.json: the steering "
+                "direction is fitted at the validation-selected layer, not chosen here.")
+        if not config.endpoint_options or not config.endpoint_positive_option:
+            raise SystemExit(
+                "Set endpoint_options and endpoint_positive_option in the config. The primary "
+                "endpoint must be the model's own output, never the probe score.")
+        if not config.intervention_strengths:
+            raise SystemExit("Set intervention_strengths in the config (a dose-response grid).")
+
+        split_manifest = json.loads(path.read_text())
+        runs = json.loads(probe_results.read_text())["runs"]
+        layers = [int(r["selected_layer"]) for r in runs]
+        layer = int(config.intervention_layer) if config.intervention_layer is not None \
+            else max(set(layers), key=layers.count)
+        held_out = df[df.sample_id.isin(set(split_manifest["test"]))]
+        if config.causal_eval_size and len(held_out) > config.causal_eval_size:
+            # Deterministic head of the held-out set; size is configurable, not hardcoded.
+            held_out = held_out.head(config.causal_eval_size)
+
+        if not args.confirm_model_load:
+            raise SystemExit(
+                "run-interventions loads subject-model weights and runs real forward passes.\n"
+                f"  model:      {config.subject_model}\n"
+                f"  layer:      {layer} (site={config.intervention_site or 'block'})\n"
+                f"  prompts:    {len(held_out)} held-out\n"
+                f"  strengths:  {list(config.intervention_strengths)}\n"
+                f"  endpoint:   P({config.endpoint_positive_option}) over "
+                f"{list(config.endpoint_options)}\n"
+                "Re-run with --confirm-model-load to authorize it.")
+
+        from .paper_causal import TransformersInterventionRunner
+
+        activations = load_activations(df, config.activation_dir, config)
+        directions = build_direction_set(activations, df, split_manifest, config, layer=layer,
+                                         nuisance_column=config.causal_nuisance_column)
+        conditions = default_conditions()
+        for name in directions:
+            if name.startswith("nuisance_"):
+                conditions = conditions + (nuisance_condition(name),)
+        runner = TransformersInterventionRunner(
+            config.subject_model, device=args.device,
+            site=config.intervention_site or "block", revision=config.model_revision)
+        result = run_causal_suite(
+            runner, held_out, directions,
+            ForcedChoiceEndpoint(tuple(config.endpoint_options), config.endpoint_positive_option),
+            layer=layer, strengths=list(config.intervention_strengths),
+            conditions=conditions, seed=config.seed,
+            n_resamples=config.bootstrap_resamples,
+            group_column=split_manifest.get("group_column", "base_item_id"))
+        # Per-row records go to CSV; the JSON keeps summaries only.
+        records = result.pop("records")
+        pd.DataFrame(records).to_csv(out / "intervention_records.csv", index=False)
+        (out / "causal_results.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(out / "causal_results.json")
+        for name, entry in result["effects"].items():
+            for strength, stats in entry["by_strength"].items():
+                print(f"  {name:38s} a={strength:>5s}  d={stats['mean_difference']:+.4f} "
+                      f"[{stats['ci_lower']:+.4f},{stats['ci_upper']:+.4f}]")
         return
 
     if args.command == "train-probes":

@@ -85,6 +85,11 @@ class PaperConfig:
     intervention_site: str | None = None
     intervention_token_policy: str | None = None
     intervention_strengths: list[float] = field(default_factory=list)
+    # Causal evaluation size is configurable rather than the reviewers' criticised 100.
+    causal_eval_size: int = 300
+    endpoint_options: list[str] = field(default_factory=list)
+    endpoint_positive_option: str | None = None
+    causal_nuisance_column: str | None = None
     decoding_settings: dict[str, Any] = field(default_factory=dict)
     nuisance_columns: list[str] = field(default_factory=list)
     learning_curve_sizes: list[int] = field(default_factory=list)
@@ -607,6 +612,31 @@ def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: Pa
                     "run analyze-confounds")
             elif "metadata_availability" not in json.loads(confounds.read_text()):
                 failures.append("confound_results.json has no metadata availability report")
+        if config is not None and config.intervention_strengths:
+            causal = root / "causal_results.json"
+            if not causal.is_file():
+                failures.append(
+                    "intervention_strengths are configured but causal_results.json is missing; "
+                    "run run-interventions")
+            else:
+                causal_result = json.loads(causal.read_text())
+                if causal_result.get("primary_endpoint_is_probe_derived") is not False:
+                    failures.append("causal results do not declare a probe-independent primary endpoint")
+                required_conditions = {
+                    "baseline", "positive_steering", "negative_steering", "random_matched_norm",
+                    "orthogonal", "shuffled_label", "wrong_layer", "wrong_token_position",
+                    "activation_patch_mismatched_prompt"}
+                present = set(causal_result.get("conditions") or [])
+                absent = sorted(required_conditions - present)
+                if absent:
+                    failures.append(f"causal control conditions are missing: {absent}")
+                if not causal_result.get("quality_controls"):
+                    failures.append("causal results carry no generation/format quality controls")
+                for name, entry in (causal_result.get("effects") or {}).items():
+                    for strength, stats in (entry.get("by_strength") or {}).items():
+                        if "ci_lower" not in stats:
+                            failures.append(f"causal effect {name}@{strength} has no bootstrap CI")
+                            break
         manifest = json.loads(manifest_file.read_text())
         if df is not None:
             try:

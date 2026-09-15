@@ -38,11 +38,23 @@ max_sequence_length: null
 prompt_template_id: poker_action_v1
 probe_type: logistic_regression
 sae_config: {}
-steering_direction_source: null
+# --- causal intervention stage (run-interventions) ---
+# Direction is fitted on the train partition at the validation-selected layer.
+steering_direction_source: probe_train_partition
+# null = reuse the modal validation-selected layer from probe_results.json.
 intervention_layer: null
-intervention_site: null
-intervention_token_policy: null
+intervention_site: block
+intervention_token_policy: prompt_end
+# Dose-response grid, in units of the unit-norm direction. Empty disables the stage.
 intervention_strengths: []
+# Held-out prompts to evaluate. Configurable: the reviewers objected to n=100.
+causal_eval_size: 300
+# The primary endpoint is the model's own answer distribution, never the probe
+# score. For the bluff-judgement dataset these are the allowed answer tokens.
+endpoint_options: []
+endpoint_positive_option: null
+# Optional: build a nuisance steering direction from this column for comparison.
+causal_nuisance_column: null
 decoding_settings: {}
 # E.g. [action, street, position, hand_strength, board_texture, bet_size]
 nuisance_columns: []

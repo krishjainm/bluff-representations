@@ -20,8 +20,12 @@
 - [x] Learning curves over multiple independent group-level subsamples per size
 - [x] Seed-level variability reported alongside grouped bootstrap CIs
 - [ ] Cross-context/model protocol with source-validation-only selection
-- [ ] Behavioral endpoint independent of probe score, paired intervention analysis, and quality controls
-- [ ] Positive/negative steering, true patching, shuffled-label, wrong-layer, and timing controls
+- [x] Behavioral endpoint independent of probe score, paired intervention analysis, and quality controls
+      (`deception_circuits/paper_causal.py`, `tests/test_causal_suite.py`; **stub-tested only, not yet run on a real model**)
+- [x] Positive/negative steering, true patching, shuffled-label, wrong-layer, and timing controls
+      (audit fails a causal run missing any of them)
+- [x] Configurable held-out causal evaluation size (default 300, not 100)
+- [x] Dose-response grid with intervention magnitude in hidden-state-norm units
 - [ ] SAE architecture, diagnostics, held-out feature ranking, stability, and example reports
 - [ ] Real-artifact-only figures/tables and paper reference cleanup
 - [ ] Full pre-paper audit of activation metadata, causal controls, behavioral endpoints, and figures

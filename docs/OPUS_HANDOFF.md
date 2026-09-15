@@ -54,6 +54,7 @@ deception-paper make-splits --config my_run.yaml
 deception-paper collect-activations --config my_run.yaml --confirm-model-load
 deception-paper train-probes --config my_run.yaml
 deception-paper analyze-confounds --config my_run.yaml
+deception-paper run-interventions --config my_run.yaml --confirm-model-load
 deception-paper audit --config my_run.yaml
 ```
 
@@ -444,3 +445,82 @@ that evaluator would silently corrupt a control variable).
 
 No model was loaded and no API call was made. No probe has been trained on this
 data yet.
+
+### 2026-09-15 — P3: behavioral causal intervention suite
+
+**Status:** P3 items 1–4 implemented and tested against stubs. Not run on a real
+model. No API call, no weights loaded.
+
+`deception_circuits/paper_causal.py` exists to enforce the brief's ninth rule:
+a direction from a probe plus an intervention that adds that direction, measured
+by the same probe's score, is circular. So:
+
+- The primary endpoint is `ForcedChoiceEndpoint` — the model's own probability
+  over its allowed answer tokens, read from the output head after a single
+  deterministic forward pass. No sampling, so the paired comparison carries no
+  decoding noise.
+- `assert_endpoint_independence` raises on `probe_score`/`probe_probability`/
+  `probe_logit`, `run_causal_suite` calls it before doing any work, and the audit
+  fails any causal run that does not declare
+  `primary_endpoint_is_probe_derived: false`.
+- The probe projection is still recorded, as `diagnostic_probe_projection`, named
+  so it cannot be quietly promoted to the result.
+
+**Steering vs patching is enforced by the type, not by convention.**
+`Intervention` refuses `kind="replace"` with a nonzero strength — a scaled
+replacement is a steer, and calling it patching is what Reviewer B objected to.
+Patching has no dose grid and sources a real activation from a different
+held-out prompt via a deterministic rotation.
+
+**Directions** are all fitted on the train partition only (`build_direction_set`,
+tested by flipping test labels and asserting the direction is unchanged): probe,
+random matched-norm, orthogonalised-against-probe, probe refit on permuted
+labels, and optionally a nuisance direction fit to predict a metadata column.
+
+**Conditions**: baseline, positive/negative steering, random matched-norm,
+orthogonal, shuffled-label, wrong-layer, wrong-token-position, mismatched-prompt
+patching, plus nuisance steering when metadata allows. `causal_eval_size`
+defaults to 300, not the 100 both reviewers criticised.
+
+**Statistics**: `paired_bootstrap_effect` holds pairs together and resamples
+*groups*, returning mean difference, percentile CI, Cohen's d_z (None when
+differences are constant rather than infinite), and signed-consistency rate.
+
+**Quality controls** sit beside the effects, not in an appendix:
+`valid_choice_mass` per condition and strength catches an "effect" that is really
+the model losing the ability to answer in the required format.
+
+Every record logs kind, layer, site, token index, timing policy, strength,
+direction name/source/norm, hidden norm, and `relative_magnitude` — the strength
+in units of the hidden-state norm, which is the only interpretable dose unit.
+
+CLI gained `run-interventions`, guarded by `--confirm-model-load`. Per-row
+records go to `intervention_records.csv`; `causal_results.json` keeps summaries
+only, so no large arrays end up in JSON.
+
+**Two real bugs were found and fixed while testing.** `intervention.to_record()`
+was spread into the row dict *after* the loop's `strength` key, silently
+overwriting it — invisible for steering, where the values agree, but it collapsed
+every patch row onto strength 0.0 and produced duplicate sample_ids in the
+pairing, which is what surfaced it. Patch conditions were also being evaluated
+once per strength despite patching having no dose. Identity fields are now
+written last and `replace` conditions are evaluated once.
+
+The stub suite reproduces the pattern a valid experiment should show: positive
+steering +0.34, negative −0.49, random +0.03, orthogonal −0.01, shuffled −0.04,
+wrong-layer and wrong-token exactly 0.0, mismatched-prompt patching centred on
+zero with a wide CI. Note that orthogonal is not exactly zero and should not be
+expected to be: it is orthogonal to the *probe*, which is only ~0.99 aligned with
+the stub's readout.
+
+Also: `build_direction_set` now raises an actionable error when the probe learns
+a zero-norm direction, which is what happens if it is pointed at activations
+carrying no label signal.
+
+Tests: **154 passed** (40 new). Full CLI smoke test passes end to end; audit
+PASSes on a complete causal run and FAILs when a control condition is removed.
+
+**What this suite can and cannot license on the current dataset** is in
+`docs/PAPER_CLAIM_GUARDRAILS.md`: because the model judges an already-taken
+raise, a clean result licenses "intervening changes the model's bluff
+*judgement*", not "changes its deceptive *behaviour*".
