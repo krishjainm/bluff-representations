@@ -26,9 +26,16 @@
       (audit fails a causal run missing any of them)
 - [x] Configurable held-out causal evaluation size (default 300, not 100)
 - [x] Dose-response grid with intervention magnitude in hidden-state-norm units
-- [ ] SAE architecture, diagnostics, held-out feature ranking, stability, and example reports
-- [ ] Real-artifact-only figures/tables and paper reference cleanup
-- [ ] Full pre-paper audit of activation metadata, causal controls, behavioral endpoints, and figures
+- [x] SAE architecture, diagnostics, held-out feature ranking, stability, and example reports
+      (`deception_circuits/paper_sae.py`, `tests/test_sae.py`; **stub-tested only**)
+- [x] SAE trained unsupervised, frozen before held-out evaluation, audit asserts both
+- [x] Legacy supervised-autoencoder artifact identified and documented (`docs/SAE_AUDIT.md`)
+- [x] Real-artifact-only figures with source data and traceable checksums
+      (`deception_circuits/paper_figures.py`, `tests/test_figures.py`)
+- [ ] Paper reference/citation cleanup (**paper-only, cannot be done in code**)
+- [x] Full pre-paper audit of activation metadata, causal controls, behavioral endpoints, and figures
+      (`deception-paper audit`; fails on any missing required artifact, separates notes from failures)
+- [ ] Cross-context generalization matrix (**the one remaining unimplemented analysis**)
 
 Unchecked work requires real dataset/model artifacts or a separate implementation pass;
 it must not be represented as complete in a manuscript.

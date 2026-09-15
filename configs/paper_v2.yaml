@@ -37,7 +37,14 @@ activation_layers: all
 max_sequence_length: null
 prompt_template_id: poker_action_v1
 probe_type: logistic_regression
+# --- SAE stage (train-sae). Unsupervised; labels only rank frozen features.
+# n_features must be explicit: there is no "same as input" default, because that
+# is not an overcomplete dictionary. Record the expansion factor you intend.
+# Example: {n_features: 8192, activation: topk, k: 32, epochs: 100, seed: 0}
 sae_config: {}
+sae_top_n_features: 5
+# Two or more seeds enables dictionary-stability reporting; empty skips it.
+sae_stability_seeds: []
 # --- causal intervention stage (run-interventions) ---
 # Direction is fitted on the train partition at the validation-selected layer.
 steering_direction_source: probe_train_partition

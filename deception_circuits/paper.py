@@ -80,6 +80,8 @@ class PaperConfig:
     decision_boundary_marker: str = "Action:"
     probe_type: str = "logistic_regression"
     sae_config: dict[str, Any] = field(default_factory=dict)
+    sae_top_n_features: int = 5
+    sae_stability_seeds: list[int] = field(default_factory=list)
     steering_direction_source: str | None = None
     intervention_layer: int | None = None
     intervention_site: str | None = None
@@ -612,6 +614,35 @@ def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: Pa
                     "run analyze-confounds")
             elif "metadata_availability" not in json.loads(confounds.read_text()):
                 failures.append("confound_results.json has no metadata availability report")
+        if config is not None and config.sae_config:
+            sae = root / "sae_results.json"
+            if not sae.is_file():
+                failures.append("sae_config is set but sae_results.json is missing; run train-sae")
+            else:
+                sae_result = json.loads(sae.read_text())
+                if sae_result.get("unsupervised") is not True:
+                    failures.append("SAE results do not declare unsupervised training")
+                if sae_result.get("training", {}).get("labels_used_in_training") is not False:
+                    failures.append("SAE results do not assert that training used no labels")
+                if not sae_result.get("sae_frozen_before_evaluation"):
+                    failures.append("SAE was not frozen before held-out evaluation")
+                if not sae_result.get("sae_unchanged_after_evaluation"):
+                    failures.append("SAE parameters changed during evaluation")
+                diagnostics = sae_result.get("diagnostics") or {}
+                missing_partitions = {"train", "validation", "test"} - set(diagnostics)
+                if missing_partitions:
+                    failures.append(f"SAE diagnostics missing partitions: {sorted(missing_partitions)}")
+                for partition, entry in diagnostics.items():
+                    absent = {"reconstruction_mse", "fraction_variance_explained", "l0_mean",
+                              "dead_feature_fraction", "activation_frequency"} - set(entry)
+                    if absent:
+                        failures.append(f"SAE {partition} diagnostics missing {sorted(absent)}")
+                        break
+                held_out = sae_result.get("held_out_feature_evaluation") or {}
+                if held_out.get("evaluation_partition") != "test":
+                    failures.append("SAE features were not evaluated on the test partition")
+                if not sae_result.get("feature_examples"):
+                    failures.append("SAE results carry no top-activating example export")
         if config is not None and config.intervention_strengths:
             causal = root / "causal_results.json"
             if not causal.is_file():

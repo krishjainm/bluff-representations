@@ -304,6 +304,22 @@ def default_conditions(*, wrong_layer_offset: int = -4, wrong_token_index: int =
     )
 
 
+def choose_wrong_layer_offset(layer: int, n_layers: int) -> int:
+    """Pick a valid, maximally distant layer offset for the wrong-layer control.
+
+    A fixed offset breaks on shallow models (offset -4 at layer 3 is layer -1), so
+    the offset is derived from what the model actually has. The control wants a
+    layer as far from the selected one as possible while staying in range.
+    """
+    if n_layers < 2:
+        raise ResearchIntegrityError(
+            "The wrong-layer control needs at least two layers to compare against")
+    if not 0 <= layer < n_layers:
+        raise ResearchIntegrityError(f"layer {layer} is outside the model's {n_layers} layers")
+    target = 0 if layer > (n_layers - 1) / 2 else n_layers - 1
+    return int(target - layer)
+
+
 def nuisance_condition(direction_name: str) -> Condition:
     return Condition(f"nuisance_steering_{direction_name}", "add", direction_name, signed=+1,
                      notes="a strategy direction, for comparison with the probe direction")
@@ -631,7 +647,8 @@ class TransformersInterventionRunner:
 __all__ = [
     "Condition", "Direction", "ForcedChoiceEndpoint", "Intervention", "InterventionRunner",
     "PROBE_DERIVED_ENDPOINTS", "assert_endpoint_independence", "build_direction_set",
-    "default_conditions", "nuisance_condition", "orthogonal_direction",
+    "choose_wrong_layer_offset", "default_conditions", "nuisance_condition",
+    "orthogonal_direction",
     "TransformersInterventionRunner", "paired_bootstrap_effect", "run_causal_suite",
     "score_generation_quality",
     "summarize_quality",

@@ -54,7 +54,9 @@ deception-paper make-splits --config my_run.yaml
 deception-paper collect-activations --config my_run.yaml --confirm-model-load
 deception-paper train-probes --config my_run.yaml
 deception-paper analyze-confounds --config my_run.yaml
+deception-paper train-sae --config my_run.yaml
 deception-paper run-interventions --config my_run.yaml --confirm-model-load
+deception-paper make-figures --config my_run.yaml
 deception-paper audit --config my_run.yaml
 ```
 
@@ -524,3 +526,91 @@ PASSes on a complete causal run and FAILs when a control condition is removed.
 `docs/PAPER_CLAIM_GUARDRAILS.md`: because the model judges an already-taken
 raise, a clean result licenses "intervening changes the model's bluff
 *judgement*", not "changes its deceptive *behaviour*".
+
+### 2026-09-15 — P4: SAE audit and rebuild, figures, matrix completion
+
+**Status:** P4 items 1–4 done. Stub-tested only; no model loaded, no API call.
+
+**The finding.** `training_pipeline.py` selected `best_autoencoder_*.pt` from the
+**supervised** results, keyed by **classification accuracy**:
+
+```python
+best_layer_name = sorted(supervised_results.items(),
+                         key=lambda x: x[1]['final_metrics']['accuracy'])[0]
+```
+
+`SupervisedDeceptionAutoencoder` has a `classify` head and a cross-entropy term,
+so its features are label-predictive by construction. Any legacy interpretability
+claim resting on that artifact is supervised feature *construction*, not
+unsupervised discovery — and the checkpoint selection used labels too. The
+`.meta.json` does record `"supervised": true`, so existing artifacts can at least
+be identified. Full defect list in `docs/SAE_AUDIT.md`, including two that would
+invalidate any frozen-SAE evaluation:
+
+- `decode()` did `with torch.no_grad(): decoder.weight.copy_(encoder.weight.t())`
+  on **every forward**. The copy is outside the autograd graph, so no gradient
+  flows encoder-ward through the tie, while the optimizer updates the decoder
+  independently and the next forward discards that update. `tied_weights=True`
+  was the default.
+- That copy also runs at inference, so a "frozen" autoencoder mutates its own
+  parameters when you call it.
+
+Also: `bottleneck_dim=0` (= input width) in every caller so nothing was
+overcomplete and no `8192` exists anywhere in the repo; no decoder unit-norm, so
+the L1 penalty was gameable by growing decoder norms; top-k selected on `abs(x)`
+with no ReLU so the "sparse code" carried negatives; L1 meaned over features so
+effective sparsity scaled as 1/width; no variance-explained, L0, or dead-feature
+reporting at all.
+
+The legacy module is left in place and marked experimental rather than migrated —
+the tying and mutation defects are structural.
+
+**`deception_circuits/paper_sae.py`** is the replacement: mandatory explicit
+`n_features` with the expansion factor recorded, TopK by default (exact L0),
+genuine tying (decoder transposes the encoder parameter *inside* the graph, so
+there is one matrix and gradients flow), decoder columns renormalised to unit norm
+after every optimizer step, input normalization fitted on train only, epoch
+selected on validation MSE with a deep-copied checkpoint, and `freeze()` before
+any held-out evaluation. `parameter_fingerprint()` exists so a test can assert
+that evaluating a frozen SAE changes not one weight — which is the bug class the
+legacy code had. Labels enter only to **rank** already-frozen features on
+train+validation; selected features are scored once on test. Feature exports carry
+metadata and `interpretation: "not assigned; requires human inspection"`.
+
+**`deception_circuits/paper_figures.py`** generates 10 figure kinds and has no
+mock path: each builder returns `not_run` with a reason when its artifact is
+absent, so a publication directory cannot fill with plausible-looking plots that
+correspond to nothing. Every figure ships its source CSV; `figures_manifest.json`
+records the source artifact and its SHA-256, and `audit_figures` detects deleted
+images, orphaned figures, and **stale** figures whose source changed after
+generation. The categorical palette was checked with the data-viz validator (all
+checks pass, worst adjacent CVD ΔE 9.1 protan / 5.8 tritan); the tritan value sits
+in the floor band, which is why per-series markers are mandatory rather than
+decorative, and the source CSV is the table view that discharges the sub-3:1
+contrast warning.
+
+Rendering the figures and looking at them caught four things the validator cannot
+see: a dead band between title and plot, a legend colliding with the provenance
+strip, snake_case endpoint names in axis labels, and — the real one — a hard
+`ylim=(0, 1.05)` on variance-explained that **clipped negative values out of
+view**. A negative EV means the SAE reconstructs worse than the partition mean;
+clamping it turned a failed reconstruction into a blank panel. The axis is now
+derived from the data with a zero line and sign-aware labels.
+
+Also added `choose_wrong_layer_offset`: the wrong-layer control's fixed −4 offset
+resolves to layer −1 on a shallow model and hard-failed. The offset is now derived
+from the model's depth.
+
+`docs/REVIEW_RESPONSE_MATRIX.md` is complete — every reviewer concern has a row.
+Two are marked **paper-only** (reference formatting, manuscript rewrite) and
+**one remains unimplemented**: the cross-context generalization matrix, which
+needs a second deception context. `figure_cross_scenario` reports that rather than
+drawing an empty heatmap.
+
+Tests: **206 passed** (52 new). Full nine-stage CLI runs end to end on stub
+artifacts; `make-figures` produced 9 figures and correctly refused the 10th; audit
+PASSes with notes.
+
+**Still true:** no real dataset run, no real activations, no API call, no probe or
+SAE trained on the real poker data, no paper metric. Every number in the smoke
+artifacts is stub output.

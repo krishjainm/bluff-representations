@@ -13,7 +13,7 @@ from .paper import (PaperConfig, audit_notes, audit_run, load_activations, make_
 from .paper_extraction import ExtractionSpec, run_extraction
 
 COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes",
-            "analyze-confounds", "run-interventions", "audit")
+            "analyze-confounds", "train-sae", "run-interventions", "make-figures", "audit")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -45,6 +45,10 @@ def main() -> None:
 
     if args.command == "audit":
         errors = audit_run(out, validate_dataset(config.dataset_path), config)
+        figures_dir = out / "figures"
+        if (figures_dir / "figures_manifest.json").is_file():
+            from .paper_figures import audit_figures
+            errors = errors + audit_figures(figures_dir)
         print("PASS" if not errors else "FAIL\n" + "\n".join(f"  FAIL: {e}" for e in errors))
         for note in audit_notes(out, config):
             print(f"  note: {note}")
@@ -114,9 +118,55 @@ def main() -> None:
             print("unavailable without more metadata: " + ", ".join(unavailable))
         return
 
+    if args.command == "make-figures":
+        from .paper_figures import build_all_figures
+
+        manifest = build_all_figures(out)
+        print(f"{manifest['figures_dir']}/figures_manifest.json")
+        print(f"  generated {manifest['n_generated']}, not run {manifest['n_not_run']}")
+        for name, reason in manifest["not_run"].items():
+            print(f"  not run: {name}: {reason}")
+        return
+
+    if args.command == "train-sae":
+        from .paper_sae import SAEConfig, run_sae_experiment
+
+        path = _manifest_path(config, out)
+        probe_results = out / "probe_results.json"
+        if not path.is_file():
+            raise FileNotFoundError("Create a split manifest before training an SAE")
+        if not config.sae_config:
+            raise SystemExit(
+                "Set sae_config in the config. n_features must be explicit: there is no "
+                "'same as input' default, because that is not an overcomplete dictionary.")
+        split_manifest = json.loads(path.read_text())
+        if probe_results.is_file():
+            layers = [int(r["selected_layer"]) for r in json.loads(probe_results.read_text())["runs"]]
+            layer = max(set(layers), key=layers.count)
+        else:
+            raise FileNotFoundError(
+                "train-sae reuses the validation-selected layer from probe_results.json so the "
+                "SAE and the probe are not analysed at inconsistent layers. Run train-probes first.")
+        sae_config = SAEConfig(**config.sae_config)
+        activations = load_activations(df, config.activation_dir, config)
+        result = run_sae_experiment(
+            activations, df, split_manifest, config, sae_config, layer=layer,
+            top_n_features=config.sae_top_n_features,
+            stability_seeds=[int(s) for s in config.sae_stability_seeds],
+            metadata_columns=config.nuisance_columns, output_dir=out)
+        (out / "sae_results.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(out / "sae_results.json")
+        test = result["diagnostics"]["test"]
+        print(f"  layer={result['layer']} expansion={result['expansion_factor']:.2f} "
+              f"EV={test['fraction_variance_explained']:.3f} L0={test['l0_mean']:.2f} "
+              f"dead={test['dead_feature_fraction']:.3f}")
+        print(f"  selected features (ranked on train+validation): {result['selected_features']}")
+        return
+
     if args.command == "run-interventions":
         from .paper_causal import (ForcedChoiceEndpoint, build_direction_set,
-                                   default_conditions, nuisance_condition, run_causal_suite)
+                                   choose_wrong_layer_offset, default_conditions,
+                                   nuisance_condition, run_causal_suite)
 
         path = _manifest_path(config, out)
         probe_results = out / "probe_results.json"
@@ -157,7 +207,8 @@ def main() -> None:
         activations = load_activations(df, config.activation_dir, config)
         directions = build_direction_set(activations, df, split_manifest, config, layer=layer,
                                          nuisance_column=config.causal_nuisance_column)
-        conditions = default_conditions()
+        conditions = default_conditions(
+            wrong_layer_offset=choose_wrong_layer_offset(layer, activations.shape[1]))
         for name in directions:
             if name.startswith("nuisance_"):
                 conditions = conditions + (nuisance_condition(name),)
