@@ -347,11 +347,14 @@ def paired_bootstrap_effect(
     differences = intervened - baseline
     keys = np.asarray(list(groups)) if groups is not None else np.arange(len(baseline))
     unique = np.unique(keys)
+    # Same precomputation as grouped_bootstrap_ci: the naive form is
+    # O(n_groups * n_pairs) per resample.
+    members = {key: np.flatnonzero(keys == key) for key in unique}
     rng = np.random.default_rng(seed)
     means: list[float] = []
     for _ in range(n_resamples):
         picked = rng.choice(unique, size=len(unique), replace=True)
-        idx = np.concatenate([np.flatnonzero(keys == key) for key in picked])
+        idx = np.concatenate([members[key] for key in picked])
         means.append(float(differences[idx].mean()))
     spread = float(differences.std(ddof=1)) if len(differences) > 1 else 0.0
     return {

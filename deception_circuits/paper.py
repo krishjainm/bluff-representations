@@ -390,11 +390,15 @@ def grouped_bootstrap_ci(
     if score is None:
         raise ValueError("metric must be auroc or pr_auc")
     unique = np.unique(groups)
+    # Precompute group -> row indices once. Recomputing `groups == group` inside the
+    # resample loop is O(n_groups * n_rows) per resample, which on a test partition
+    # of ~9k near-singleton groups dominates the entire probe stage.
+    members = {group: np.flatnonzero(groups == group) for group in unique}
     rng = np.random.default_rng(seed)
     values: list[float] = []
     for _ in range(n_resamples):
         selected = rng.choice(unique, size=len(unique), replace=True)
-        idx = np.concatenate([np.flatnonzero(groups == group) for group in selected])
+        idx = np.concatenate([members[group] for group in selected])
         if len(np.unique(y[idx])) == 2:
             values.append(float(score(y[idx], probabilities[idx])))
     if not values:
