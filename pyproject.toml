@@ -13,6 +13,10 @@ dependencies = [
     "pandas>=2.3.3",
     "plotly>=6.5.2",
     "psutil>=7.2.1",
+    # SentencePiece-based tokenizers (Mistral, Llama) need these; transformers
+    # raises ImportError at tokenizer load without them.
+    "protobuf>=4.25",
+    "sentencepiece>=0.2.0",
     "pyyaml>=6.0.3",
     "scikit-learn>=1.7.2",
     "scipy>=1.15.3",
