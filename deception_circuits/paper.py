@@ -38,6 +38,21 @@ class ResearchIntegrityError(ValueError):
     """Raised when an input cannot support a real research experiment."""
 
 
+def render_predecision_prompt(statement: str, template: str = "{statement}\nAction:") -> tuple[str, int]:
+    """Render a controlled decision prompt and return its character boundary.
+
+    The response is intentionally not an argument: this makes accidental
+    response-token probing impossible in the primary prompt-end path.
+    Tokenizers must record the corresponding final-token index at extraction.
+    """
+    if "{statement}" not in template:
+        raise ResearchIntegrityError("Prompt template must contain {statement}")
+    prompt = template.format(statement=str(statement))
+    if not prompt.strip().endswith("Action:"):
+        raise ResearchIntegrityError("Pre-decision prompt template must end at an explicit 'Action:' boundary")
+    return prompt, len(prompt)
+
+
 @dataclass(frozen=True)
 class PaperConfig:
     experiment_name: str

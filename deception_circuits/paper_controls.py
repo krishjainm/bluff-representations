@@ -42,6 +42,8 @@ def run_causal_control_suite(
     layer_idx: int,
     probe_steering_vector: torch.Tensor,
     mismatched_patch_vector: Optional[torch.Tensor] = None,
+    shuffled_label_vector: Optional[torch.Tensor] = None,
+    wrong_layer_idx: Optional[int] = None,
     strengths: Optional[List[float]] = None,
     max_new_tokens: int = 64,
     random_seed: int = 0,
@@ -107,6 +109,45 @@ def run_causal_control_suite(
                 meta={"control": "probe", "strength": a},
             )
         )
+        out.append(
+            ControlSuiteResult(
+                f"negative_probe_steering_strength_{a}",
+                runner.generate(
+                    prompt, max_new_tokens=max_new_tokens, layer_idx=layer_idx,
+                    steering_vector=probe_steering_vector, strength=-a,
+                    steering_mode="add",
+                ),
+                meta={"control": "negative_probe", "strength": -a},
+            )
+        )
+
+    if shuffled_label_vector is not None:
+        for a in strengths:
+            if a == 0:
+                continue
+            out.append(
+                ControlSuiteResult(
+                    f"shuffled_label_direction_strength_{a}",
+                    runner.generate(prompt, max_new_tokens=max_new_tokens,
+                                    layer_idx=layer_idx, steering_vector=shuffled_label_vector,
+                                    strength=a, steering_mode="add"),
+                    meta={"control": "shuffled_label_direction", "strength": a},
+                )
+            )
+
+    if wrong_layer_idx is not None:
+        for a in strengths:
+            if a == 0:
+                continue
+            out.append(
+                ControlSuiteResult(
+                    f"wrong_layer_probe_steering_strength_{a}",
+                    runner.generate(prompt, max_new_tokens=max_new_tokens,
+                                    layer_idx=wrong_layer_idx, steering_vector=probe_steering_vector,
+                                    strength=a, steering_mode="add"),
+                    meta={"control": "wrong_layer", "layer_idx": wrong_layer_idx, "strength": a},
+                )
+            )
 
     for a in strengths:
         if a == 0:

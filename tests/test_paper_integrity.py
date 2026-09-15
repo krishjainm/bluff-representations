@@ -8,8 +8,9 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
-                                      load_activations, make_split_manifest,
+                                      load_activations, make_split_manifest, render_predecision_prompt,
                                       run_probe_experiment, validate_dataset)
+from deception_circuits.causal_generation import CausalLMInterventionRunner
 
 
 def _fixture(tmp_path: Path):
@@ -59,3 +60,23 @@ def test_duplicate_sample_id_is_rejected(tmp_path):
     df.to_csv(csv, index=False)
     with pytest.raises(ResearchIntegrityError, match="unique"):
         validate_dataset(csv)
+
+
+def test_predecision_prompt_has_explicit_boundary_and_no_response_argument():
+    prompt, boundary = render_predecision_prompt("Raise if appropriate")
+    assert prompt == "Raise if appropriate\nAction:"
+    assert boundary == len(prompt)
+    with pytest.raises(ResearchIntegrityError, match="Action"):
+        render_predecision_prompt("x", "Question: {statement}")
+
+
+def test_patching_replaces_and_prefill_policy_runs_once():
+    # Avoid model loading: the hook itself is pure tensor logic.
+    runner = CausalLMInterventionRunner.__new__(CausalLMInterventionRunner)
+    runner.device = "cpu"
+    patch = torch.full((3,), 7.0)
+    hook = runner._make_hook("replace", patch, strength=0.1, timing_policy="prefill_only")
+    first = hook(None, None, torch.zeros(1, 2, 3))
+    second = hook(None, None, torch.zeros(1, 1, 3))
+    assert torch.equal(first[0, -1], patch)
+    assert torch.equal(second, torch.zeros(1, 1, 3))

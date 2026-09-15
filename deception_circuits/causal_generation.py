@@ -29,6 +29,7 @@ class InterventionResult:
     mode: str
     layer_idx: int
     strength: float
+    timing_policy: str = "every_decode_step"
 
 
 def _hidden_from_layer_output(output) -> torch.Tensor:
@@ -128,10 +129,18 @@ class CausalLMInterventionRunner:
         vector: torch.Tensor,
         strength: float,
         token_position: int = -1,
+        timing_policy: str = "every_decode_step",
     ) -> Callable:
+        if timing_policy not in {"prefill_only", "first_decision_token", "every_decode_step"}:
+            raise ValueError("timing_policy must be prefill_only, first_decision_token, or every_decode_step")
         v = vector.to(self.device).view(1, -1)
+        calls = 0
 
         def hook(module, inp, out):
+            nonlocal calls
+            calls += 1
+            if timing_policy in {"prefill_only", "first_decision_token"} and calls != 1:
+                return out
             h = _hidden_from_layer_output(out)
             new_h = h.clone()
             seq_len = new_h.shape[1]
@@ -141,7 +150,9 @@ class CausalLMInterventionRunner:
             if mode == "add":
                 new_pos = cur + strength * v
             elif mode == "replace":
-                new_pos = strength * v.expand_as(cur)
+                # Replacement is patching: it replaces, rather than scales or
+                # subtracts from, the selected activation.
+                new_pos = v.expand_as(cur)
             else:
                 raise ValueError(f"Unknown mode {mode}")
             new_h[:, pos, :] = new_pos
@@ -164,18 +175,22 @@ class CausalLMInterventionRunner:
         strength: float = 0.0,
         do_sample: bool = True,
         token_position: int = -1,
+        timing_policy: str = "every_decode_step",
     ) -> InterventionResult:
         """
         Generate text; optionally steer at `layer_idx` with `steering_vector`.
 
         If layer_idx is None or strength == 0, runs plain generation.
         ``token_position``: index into sequence (-1 = last token each step).
+        ``timing_policy``: apply to prefill/first decision only, or to every
+        decode step. This policy is returned with the artifact record.
         """
         inputs = self._encode(prompt)
         handles = []
         if layer_idx is not None and steering_vector is not None and strength != 0:
             hfn = self._make_hook(
                 steering_mode, steering_vector, strength, token_position=token_position
+                , timing_policy=timing_policy
             )
             handles.append(self._hook_module(layer_idx).register_forward_hook(hfn))
         try:
@@ -197,6 +212,7 @@ class CausalLMInterventionRunner:
             mode=steering_mode if handles else "none",
             layer_idx=layer_idx if handles else -1,
             strength=strength,
+            timing_policy=timing_policy,
         )
 
     def random_direction_control(self, dim: int, seed: Optional[int] = None) -> torch.Tensor:
