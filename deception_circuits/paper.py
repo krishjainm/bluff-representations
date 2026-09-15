@@ -130,11 +130,28 @@ def validate_dataset(path: str | Path) -> pd.DataFrame:
     return df
 
 
-def load_activations(df: pd.DataFrame, activation_dir: str | Path) -> np.ndarray:
-    """Load one real [layers, hidden] tensor per sample, failing on any defect."""
+def load_activations(
+    df: pd.DataFrame,
+    activation_dir: str | Path,
+    config: "PaperConfig | None" = None,
+    *,
+    require_manifest: bool = True,
+) -> np.ndarray:
+    """Load one real [layers, hidden] tensor per sample, failing on any defect.
+
+    By default an extraction provenance manifest must exist and cover every
+    dataset row.  When ``config`` is supplied the manifest is additionally
+    checked against it, so a ``prompt_end`` run cannot silently consume
+    ``response_token`` artifacts.  ``require_manifest=False`` exists only for
+    unit tests of the tensor-level checks themselves.
+    """
     root = Path(activation_dir)
     if not root.is_dir():
         raise FileNotFoundError(f"Activation directory is missing: {root}")
+    if require_manifest:
+        # Imported here: paper_extraction depends on this module.
+        from .paper_extraction import verify_extraction_manifest
+        verify_extraction_manifest(df, root, config)
     tensors: list[np.ndarray] = []
     shape: tuple[int, ...] | None = None
     for sid in df["sample_id"]:
@@ -320,7 +337,11 @@ def write_run_metadata(config: PaperConfig, output_dir: Path) -> None:
 
 
 def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: PaperConfig | None = None) -> list[str]:
+    """Return every reason this experiment folder cannot support a paper claim."""
     root = Path(output_dir); failures = []
+    if df is not None and config is not None:
+        from .paper_extraction import audit_activation_provenance
+        failures.extend(audit_activation_provenance(df, config.activation_dir, config))
     manifest_file = Path(config.split_manifest_path) if config and config.split_manifest_path else root / "split_manifest.json"
     for name in ("resolved_config.yaml", "run_metadata.json", "probe_results.json"):
         if not (root / name).is_file(): failures.append(f"missing {name}")

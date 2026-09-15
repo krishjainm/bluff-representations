@@ -9,7 +9,11 @@ Sites:
 
 from __future__ import annotations
 
+from typing import Optional
+
 import torch.nn as nn
+
+
 def get_transformer_layers(model: nn.Module) -> Optional[nn.ModuleList]:
     """Stack of transformer blocks (shared by extractor + interventions)."""
     if hasattr(model, "model") and hasattr(model.model, "layers"):

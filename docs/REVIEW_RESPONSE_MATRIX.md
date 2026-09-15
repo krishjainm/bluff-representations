@@ -4,7 +4,7 @@
 |---|---|---|
 | Reproducible dataset schema and fixed splits | fixed in V2 probe path | `paper.py`, protocol, manifest checksum |
 | Silent fake activations | fixed in V2 probe path | strict activation loader hard-fails |
-| Answer-token leakage / unclear location | partially fixed | config records `prompt_end`; extractor implementation remains required |
+| Answer-token leakage / unclear location | fixed in code, blocked on real run | `paper_extraction.py` pre-decision modes never receive the `response` column; per-sample `token_index` is recorded in `extraction_manifest.json`; `tests/test_extraction_integrity.py` proves response text cannot enter the path. Real artifacts still need to be extracted. |
 | Test-set layer selection | fixed in V2 probe path | selection is validation-only and audit checks it |
 | Repeated runs and metrics | partially fixed | five configurable seeds and full classification metrics; grouped CIs remain required |
 | Poker confounds and nuisance baselines | blocked on metadata / implementation | schema can carry fields, matching analysis remains required |

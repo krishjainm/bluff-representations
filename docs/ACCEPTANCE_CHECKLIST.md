@@ -6,7 +6,8 @@
 - [x] Config, commit, package/environment provenance, repeated seeds, AUROC/PR-AUC, grouped CIs
 - [x] Prompt-text, response-text diagnostic, majority, and optional nuisance-only baselines
 - [ ] Dataset construction, labeling prompts, public examples, and final composition report
-- [ ] Audited prompt-end/decision-token activation extractor with logged token index and boundary tests
+- [x] Audited prompt-end/decision-token activation extractor with logged token index and boundary tests
+      (`deception_circuits/paper_extraction.py`, `tests/test_extraction_integrity.py`; implemented and tested against stubs — **not yet run on a real subject model**)
 - [ ] Poker matched subsets and residualized/conditional nuisance analyses
 - [ ] Cross-context/model protocol with source-validation-only selection
 - [ ] Behavioral endpoint independent of probe score, paired intervention analysis, and quality controls

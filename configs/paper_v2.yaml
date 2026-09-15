@@ -11,12 +11,20 @@ validation_fraction: 0.10
 probe_c: 1.0
 n_seeds: 5
 bootstrap_resamples: 1000
+# --- extraction: these fields now constrain `collect-activations` and are
+# --- checked against the artifact manifest before probes can read them.
+# residual_stream == decoder block output; also accepts attn | mlp.
 activation_site: residual_stream
+# prompt_end | decision_token_prelogit | mean_prompt are pre-decision (primary).
+# response_token is a labelled diagnostic and will fail the audit as a primary.
 activation_mode: prompt_end
 subject_model: REPLACE_WITH_EXACT_MODEL_ID
 model_revision: null
 tokenizer_revision: null
+# `all`, or an explicit list/space-or-comma separated string of layer indices.
 activation_layers: all
+# Leave null for pre-decision modes unless every prompt fits: truncation that
+# would move the `Action:` boundary is refused rather than silently applied.
 max_sequence_length: null
 prompt_template_id: poker_action_v1
 probe_type: logistic_regression

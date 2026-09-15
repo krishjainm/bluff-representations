@@ -50,6 +50,8 @@ CLI:
 ```bash
 deception-paper validate-data --config my_run.yaml
 deception-paper make-splits --config my_run.yaml
+# Loads subject-model weights and runs real forward passes; requires the flag.
+deception-paper collect-activations --config my_run.yaml --confirm-model-load
 deception-paper train-probes --config my_run.yaml
 deception-paper audit --config my_run.yaml
 ```
@@ -219,3 +221,92 @@ At the end, report changed files, reviewer-matrix status, actual tests and
 their results, exact future commands, compute-heavy actions performed/not
 performed, remaining risks, and a candid go/no-go. “Code compiles” is not a
 submission-ready conclusion.
+
+---
+
+## Running log
+
+### 2026-09-15 — P1 chunk 1: leakage-safe extraction with provenance
+
+**Status of the prioritized P1 plan above:** items 2, 3, and 4 are now
+implemented and tested; item 1 (canonical dataset release) remains blocked on
+the team's real data. No real model was loaded and no API call was made.
+
+Full audit findings are in `docs/P1_EXTRACTION_PLAN.md`. The headline gap was
+that the strict path had **no extraction stage at all**, and the only code that
+produced the `sample_<id>.pt` artifacts it consumes was
+`ModelIntegrationPipeline.create_complete_dataset`, which builds
+`f"Q: {s}\nA: {r}"` and pools the last non-pad token — i.e. the probe read the
+completed response. That is exactly Reviewer A's trivial-probing concern.
+
+Added `deception_circuits/paper_extraction.py`:
+
+- Leakage safety is **structural**. Pre-decision modes (`prompt_end`,
+  `decision_token_prelogit`, `mean_prompt`) never receive the `response` column,
+  and an `ExtractionSpec` whose template references `{response}` in those modes
+  fails at construction. `response_token` still exists but requires
+  `allow_response_leakage=True`, which is stamped into the manifest, and the
+  audit reports it as not a valid primary extraction.
+- `prompt_end`/`decision_token_prelogit` templates must end at an explicit
+  `Action:` boundary, and truncation that would move that boundary is a hard
+  error rather than a silent shift.
+- `ExtractionSpec.fingerprint()` is a SHA-256 over every choice that changes the
+  numbers: model, both revisions, hook site, mode, layer subset, sequence limit,
+  template id and text, dtype, diagnostic opt-in.
+- Per-sample provenance is written to `extraction_manifest.jsonl` immediately
+  after each tensor lands, then consolidated into `extraction_manifest.json`:
+  `sample_id`, artifact, **exact `token_index`**, `n_prompt_tokens`, `truncated`,
+  `prompt_span`, `layer_indices`, shape, and a prompt SHA-256 (the hash, not the
+  text, so artifacts carry no private dataset content).
+- Extraction resumes sample-wise, re-extracts any sample whose artifact was
+  deleted, and **refuses** to write into a directory whose recorded spec
+  fingerprint differs instead of mixing artifacts.
+- Model access is injected via a `HiddenStateProvider` protocol.
+  `TransformersHiddenStateProvider` is imported lazily and constructed only on
+  explicit request, so importing the package never touches the network.
+
+Wiring:
+
+- `paper.py:load_activations` now requires a provenance manifest by default and,
+  when given a `PaperConfig`, verifies the manifest agrees with it field by
+  field. A `prompt_end` config can no longer consume `response_token` tensors.
+  `require_manifest=False` remains only for unit-testing the tensor checks.
+- `paper.py:audit_run` now runs `audit_activation_provenance`.
+- `paper_cli.py` gained `collect-activations`. It refuses to run without
+  `--confirm-model-load` and prints exactly what it would load first, so no
+  large download can happen by accident.
+- Config fields that were previously inert documentation (`activation_site`,
+  `activation_mode`, `activation_layers`, `max_sequence_length`,
+  `model_revision`, `tokenizer_revision`, `prompt_template_id`) now constrain a
+  real run. `subject_model` containing `REPLACE` is rejected.
+- Fixed `activation_sites.py` missing `Optional` import.
+
+**Note on a pre-existing test.** `test_missing_activation_is_a_hard_error`
+started passing for the wrong reason once provenance checks landed: its
+`match="Missing activation"` also matched the new "Missing activation provenance
+manifest" error. It is now
+`test_missing_activation_file_is_a_hard_error`, anchored on
+`Missing activation for sample_id=0-0`, so it cannot pass because provenance is
+merely absent. The fixture in `tests/test_paper_integrity.py` now builds its
+activations through `run_extraction` with a named stub, so it exercises the real
+provenance path.
+
+Tests: `31 passed` (`tests/test_extraction_integrity.py` 26 new,
+`tests/test_paper_integrity.py` 5). Command:
+
+```bash
+MPLCONFIGDIR=/private/tmp/deception-llms-matplotlib \
+UV_CACHE_DIR=/private/tmp/deception-llms-uv-cache \
+uv run --with pytest pytest -q tests/
+```
+
+Also smoke-tested the whole CLI on stub artifacts:
+`validate-data` → `make-splits` → `train-probes` → `audit` all pass, and audit
+correctly FAILs on a mismatched `subject_model` and on a provenance-less
+activation directory. The console script is not installed in `.venv`; use
+`uv run python -m deception_circuits.paper_cli <command>`.
+
+**Still true and unchanged:** no real dataset, no real activations, no API call,
+no behavioral endpoint measured, no SAE result, no paper metric. The repository
+contains only a 4-row `quick_demo_data/quick_demo.csv` that does not carry the
+canonical schema.

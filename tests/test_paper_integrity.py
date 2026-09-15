@@ -7,38 +7,55 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from _stubs import StubHiddenStateProvider
+
 from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
                                       load_activations, make_split_manifest, render_predecision_prompt,
                                       run_probe_experiment, validate_dataset)
+from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
 from deception_circuits.causal_generation import CausalLMInterventionRunner
+
+STUB_MODEL = "stub/tiny-test-model"
+
+
+def _config(csv: Path, activations: Path, tmp_path: Path, **overrides) -> PaperConfig:
+    base = dict(experiment_name="test", dataset_path=str(csv), activation_dir=str(activations),
+                output_dir=str(tmp_path / "out"), subject_model=STUB_MODEL,
+                prompt_template_id="poker_action_v1", n_seeds=2, bootstrap_resamples=30)
+    base.update(overrides)
+    return PaperConfig(**base)
 
 
 def _fixture(tmp_path: Path):
-    activations = tmp_path / "activations"
-    activations.mkdir()
+    """Build a dataset plus real (stub-derived) pre-decision activations.
+
+    The statements differ between the two rows of a group, so a prompt-end probe
+    legitimately has signal here; nothing in this fixture asserts a performance
+    level, it only exercises split/selection/CI logic.
+    """
     rows = []
     for group in range(20):
         for label in (0, 1):
-            sid = f"{group}-{label}"
-            rows.append({"sample_id": sid, "base_item_id": group,
-                         "split_group_id": group, "statement": f"prompt {group}",
+            rows.append({"sample_id": f"{group}-{label}", "base_item_id": group,
+                         "split_group_id": group, "statement": f"hand {group} variant {label}",
                          "response": "response", "label": label, "scenario": "poker"})
-            tensor = torch.randn(3, 6)
-            tensor[:, 0] += label
-            torch.save(tensor, activations / f"sample_{sid}.pt")
     csv = tmp_path / "dataset.csv"
-    pd.DataFrame(rows).to_csv(csv, index=False)
+    df = pd.DataFrame(rows)
+    df.to_csv(csv, index=False)
+    activations = tmp_path / "activations"
+    spec = ExtractionSpec(subject_model=STUB_MODEL, prompt_template_id="poker_action_v1")
+    run_extraction(df, spec, activations, StubHiddenStateProvider())
     return csv, activations
 
 
 def test_paper_probe_is_group_safe_and_validation_selected(tmp_path):
     csv, activation_dir = _fixture(tmp_path)
-    config = PaperConfig("test", str(csv), str(activation_dir), str(tmp_path / "out"), n_seeds=2, bootstrap_resamples=30)
+    config = _config(csv, activation_dir, tmp_path)
     df = validate_dataset(csv)
     manifest = make_split_manifest(df, config)
     split_by_id = {sid: name for name in ("train", "validation", "test") for sid in manifest[name]}
     assert df.assign(split=df.sample_id.map(split_by_id)).groupby("split_group_id").split.nunique().max() == 1
-    result = run_probe_experiment(df, load_activations(df, activation_dir), manifest, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
     assert result["selection_partition"] == "validation"
     assert result["test_partition_used_for_selection"] is False
     assert len(result["runs"]) == 2
@@ -46,11 +63,13 @@ def test_paper_probe_is_group_safe_and_validation_selected(tmp_path):
     assert "prompt_text" in result["baselines"]
 
 
-def test_missing_activation_is_a_hard_error(tmp_path):
+def test_missing_activation_file_is_a_hard_error(tmp_path):
     csv, activation_dir = _fixture(tmp_path)
     (activation_dir / "sample_0-0.pt").unlink()
-    with pytest.raises(FileNotFoundError, match="Missing activation"):
-        load_activations(validate_dataset(csv), activation_dir)
+    # Matches the per-sample tensor error, not the manifest error, so this test
+    # cannot pass merely because provenance is absent.
+    with pytest.raises(FileNotFoundError, match=r"Missing activation for sample_id=0-0"):
+        load_activations(validate_dataset(csv), activation_dir, require_manifest=False)
 
 
 def test_duplicate_sample_id_is_rejected(tmp_path):
