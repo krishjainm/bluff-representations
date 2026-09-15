@@ -1,5 +1,15 @@
 # What the pipeline needs before P1 can be closed
 
+> **The repository already has a real poker dataset** on
+> `origin/dataset-integration` (`sample_data/normalized_poker_gpt4o.fixed.csv`,
+> 44,631 rows). It is adapted to the canonical schema by
+> `deception_circuits/poker_adapter.py`. Read
+> **`docs/POKER_DATASET_NOTES.md`** first: it is a bluff-*judgement* dataset
+> (Design B below), its `response` column is the label verbatim, its prompt
+> names the target concept, and made-hand strength alone reaches AUROC 0.885
+> on the label. This document describes what a Design A dataset would need if
+> the team wants the stronger causal claim.
+
 P1 items 2–4 (extraction, provenance, resumability) are implemented and tested.
 P1 item 1 — "specify one canonical dataset release" — is the only thing blocking
 a real run, and it cannot be fabricated. This document states exactly what the

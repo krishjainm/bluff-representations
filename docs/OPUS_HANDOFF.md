@@ -393,3 +393,54 @@ the control is for.
 **Still true:** no real dataset, no real activations, no API call, no behavioral
 endpoint, no SAE result, no paper metric. Every confound number produced so far
 is chance-level stub output, as expected.
+
+### 2026-09-15 — the real dataset: found, adapted, and characterised
+
+`sample_data/normalized_poker_gpt4o.csv` **does exist** — on
+`origin/dataset-integration` (`9695f3c`), not in the `conference-rebuild` working
+tree, which is why the earlier P1 note said no dataset was available. 44,631
+rows, 44,311 distinct dealt hands, 16.8% positive.
+
+`deception_circuits/poker_adapter.py` maps it to the canonical schema and
+recovers metadata at 100% parse coverage: position, street, hole cards, board,
+amount faced, board texture, and a made-hand category from a tested 5–7 card
+evaluator. `prepare_poker_dataset.py` materialises the CSV and a dataset card
+into git-ignored `data/derived/`.
+
+Four measured properties change what this data can support. Full detail in
+`docs/POKER_DATASET_NOTES.md`; the short version:
+
+1. **`response` is the label verbatim** for all 44,631 rows. Response-token
+   analysis scores 1.0 and means nothing. The pre-decision guard built in the P1
+   chunk is not hypothetical here — it is load-bearing.
+2. **Every prompt asks "Is this a bluff?"**, so the probe is substantially
+   reading the model's answer to an explicitly asked question. The adapter's
+   `prompt_variant=neutral_state` strips the question so the size of this
+   instruction confound can be measured instead of argued about.
+3. **The model is a classifier, not the actor** — the judged raise has already
+   happened. So the strongest available causal claim is "intervening changes the
+   model's bluff *judgement*", not "changes its deceptive *behaviour*". The
+   second needs the model-as-actor design in `docs/DATASET_REQUIREMENTS.md`.
+4. **The label is nearly a function of hand strength.** A 9-category one-hot of
+   made-hand alone gives **AUROC 0.885 / PR-AUC 0.551** against a 0.168 base
+   rate; adding street, position, and board texture gives **0.921 / 0.600**.
+   In-sample, so an upper bound, but a few categorical levels over 44k rows
+   barely overfit.
+
+Point 4 is the one that matters most for the rebuild. A layerwise probe scoring
+in the low 0.90s here is not clearly beating mechanical hand evaluation, so the
+paper's claim has to be "beyond what made-hand strength and game state explain",
+reported next to the nuisance-only baseline and the new `made_hand_matched`
+control. That control was added to `paper_confounds.ANALYSIS_REQUIREMENTS` in
+this chunk.
+
+Also generalised `ExtractionSpec.decision_boundary_marker` (default `Action:`)
+so a forced-choice judgement prompt can end at `Answer:` and still have its
+boundary structurally enforced.
+
+Tests: **114 passed** (35 new adapter tests, including every made-hand category,
+the wheel, ace-high straights, and four-to-a-straight/flush negatives — a bug in
+that evaluator would silently corrupt a control variable).
+
+No model was loaded and no API call was made. No probe has been trained on this
+data yet.

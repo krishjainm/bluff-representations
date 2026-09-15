@@ -77,6 +77,7 @@ class PaperConfig:
     activation_layers: str = "all"
     max_sequence_length: int | None = None
     prompt_template_id: str = "unspecified"
+    decision_boundary_marker: str = "Action:"
     probe_type: str = "logistic_regression"
     sae_config: dict[str, Any] = field(default_factory=dict)
     steering_direction_source: str | None = None

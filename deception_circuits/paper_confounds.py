@@ -75,6 +75,10 @@ ANALYSIS_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "action_matched": ("action",),
     "street_matched": ("action", "street"),
     "equity_matched": ("action", "hand_strength"),
+    # Made-hand category is not equity, but it is the strongest mechanically
+    # derivable strength control and on the poker bluff-judgement dataset it
+    # alone reaches AUROC ~0.89 on the label.
+    "made_hand_matched": ("action", "made_hand"),
     "bet_size_matched": ("action", "bet_size", "pot_size"),
     "position_matched": ("action", "position"),
     "board_matched": ("action", "board_texture"),
@@ -503,6 +507,9 @@ def run_confound_suite(
         seed=config.seed, group_column=manifest.get("group_column", "base_item_id")))
     attempt("board_matched", lambda: build_matched_subset(
         bluff_vs_value_subset(df), exact_columns=("action", "board_texture"), seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id")))
+    attempt("made_hand_matched", lambda: build_matched_subset(
+        bluff_vs_value_subset(df), exact_columns=("action", "made_hand"), seed=config.seed,
         group_column=manifest.get("group_column", "base_item_id")))
     result["unavailable_analyses"] = sorted(
         name for name, v in result["subsets"].items() if v.get("status") == "not_run")

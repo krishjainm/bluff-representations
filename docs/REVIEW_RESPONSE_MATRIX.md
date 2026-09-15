@@ -13,9 +13,11 @@
 | Steering versus activation replacement | paper-only / legacy audit required | terminology guardrail needed before paper drafting |
 | SAE diagnostics and feature examples | not yet implemented | do not make SAE claims from legacy code |
 | Figures from real artifacts | not yet implemented | no publication figures should be generated yet |
-| Concrete examples, labeling prompts, composition | blocked on real dataset | requirements, sourcing options, and label-provenance rules specified in `docs/DATASET_REQUIREMENTS.md`; store with the data release |
+| Concrete examples, labeling prompts, composition | partially fixed | real dataset adapted and characterised: `poker_adapter.py` emits the canonical schema plus parsed metadata and a composition report with integrity flags; see `docs/POKER_DATASET_NOTES.md`. **Upstream label provenance is still undocumented** and must be stated before publication. |
 | Early stopping and stale metrics | fixed in legacy probe path | deep copied checkpoint; metrics recomputed after restore |
 | Calibration, PR-AUC, and uncertainty | fixed in code, blocked on real run | PR-AUC, grouped bootstrap CIs, ECE in `compute_binary_metrics`, and group-level learning curves with multiple independent subsamples per size (`paper.py:run_learning_curve`) |
 | Exact intervention timing and dose | not yet implemented | must be config-recorded and evaluated on held-out paired prompts |
 | Quality degradation versus behavioral change | not yet implemented | task validity/refusal/repetition/quality must accompany causal results |
 | Overstated terminology / reasoning-trace framing | partially fixed | README guardrail; manuscript rewrite remains |
+| Probe may be reading poker strategy, not deception | newly identified, controls in place | on the real dataset made-hand category alone reaches AUROC 0.885 / PR-AUC 0.551 vs a 0.168 base rate (`docs/POKER_DATASET_NOTES.md`). `made_hand_matched` and the nuisance-only baseline must be reported beside the probe. |
+| Prompt names the target concept (instruction confound) | newly identified, measurable | every source prompt asks "Is this a bluff?"; `poker_adapter.py` `prompt_variant` produces a question-stripped `neutral_state` variant so the confound can be quantified rather than assumed. |

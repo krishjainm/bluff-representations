@@ -63,6 +63,9 @@ class ExtractionSpec:
     max_sequence_length: int | None = None
     prompt_template_id: str = "unspecified"
     prompt_template: str = DEFAULT_PREDECISION_TEMPLATE
+    # The token the prompt must end at, so the read position is unambiguous.
+    # "Action:" suits a decision prompt; "Answer:" suits a forced-choice question.
+    decision_boundary_marker: str = "Action:"
     torch_dtype: str = "float32"
     # Must be True to run a ``response_token`` extraction.  Recorded so that an
     # auditor can tell a diagnostic artifact from a pre-decision one.
@@ -89,11 +92,13 @@ class ExtractionSpec:
                 raise ResearchIntegrityError(
                     "allow_response_leakage must be False for pre-decision modes"
                 )
+        if not str(self.decision_boundary_marker).strip():
+            raise ResearchIntegrityError("decision_boundary_marker must be a non-empty string")
         if self.activation_mode in ("prompt_end", "decision_token_prelogit"):
-            if not self.prompt_template.rstrip().endswith("Action:"):
+            if not self.prompt_template.rstrip().endswith(self.decision_boundary_marker):
                 raise ResearchIntegrityError(
-                    "prompt_end/decision_token_prelogit templates must end at an "
-                    "explicit 'Action:' decision boundary"
+                    "prompt_end/decision_token_prelogit templates must end at the explicit "
+                    f"decision boundary {self.decision_boundary_marker!r}"
                 )
         if self.activation_mode in DIAGNOSTIC_MODES:
             if not self.allow_response_leakage:
@@ -104,6 +109,12 @@ class ExtractionSpec:
             if "{response}" not in self.prompt_template:
                 raise ResearchIntegrityError(
                     "response_token template must reference {response}"
+                )
+            before, _, _ = self.prompt_template.partition("{response}")
+            if not before.rstrip().endswith(self.decision_boundary_marker):
+                raise ResearchIntegrityError(
+                    "response_token template must place {response} immediately after the "
+                    f"decision boundary {self.decision_boundary_marker!r}"
                 )
         if self.max_sequence_length is not None and self.max_sequence_length < 1:
             raise ResearchIntegrityError("max_sequence_length must be >= 1 when set")
@@ -173,6 +184,7 @@ def paper_config_spec_fields(config: Any) -> dict[str, Any]:
         "layer_indices": layer_indices,
         "max_sequence_length": getattr(config, "max_sequence_length", None),
         "prompt_template_id": str(getattr(config, "prompt_template_id", "unspecified")),
+        "decision_boundary_marker": str(getattr(config, "decision_boundary_marker", "Action:")),
     }
 
 

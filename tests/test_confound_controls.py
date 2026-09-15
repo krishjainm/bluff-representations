@@ -27,7 +27,8 @@ from deception_circuits.paper_confounds import (ANALYSIS_REQUIREMENTS, bluff_vs_
 from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
 
 STUB_MODEL = "stub/tiny-test-model"
-FULL_NUISANCE = ["action", "street", "position", "hand_strength", "board_texture", "bet_size", "pot_size"]
+FULL_NUISANCE = ["action", "street", "position", "hand_strength", "made_hand",
+                 "board_texture", "bet_size", "pot_size"]
 
 
 def _rows(n_groups: int = 24, *, with_metadata: bool = True) -> list[dict]:
@@ -51,6 +52,9 @@ def _rows(n_groups: int = 24, *, with_metadata: bool = True) -> list[dict]:
                     "position": positions[group % len(positions)],
                     "board_texture": textures[group % len(textures)],
                     "hand_strength": 0.2 + 0.6 * label + 0.01 * group,
+                    # Deliberately not label-separated, so made-hand matching
+                    # leaves a real within-stratum contrast.
+                    "made_hand": ("pair", "two_pair", "flush")[group % 3],
                     "bet_size": 10.0 + group, "pot_size": 40.0 + 2 * group,
                 })
             rows.append(row)

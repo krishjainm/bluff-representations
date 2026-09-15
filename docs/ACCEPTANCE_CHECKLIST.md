@@ -5,8 +5,11 @@
 - [x] Validation-only layer selection and restored early-stopping checkpoint metrics
 - [x] Config, commit, package/environment provenance, repeated seeds, AUROC/PR-AUC, grouped CIs
 - [x] Prompt-text, response-text diagnostic, majority, and optional nuisance-only baselines
-- [ ] Dataset construction, labeling prompts, public examples, and final composition report
-      (requirements and sourcing options: `docs/DATASET_REQUIREMENTS.md` — **this is the one blocker**)
+- [~] Dataset construction, labeling prompts, public examples, and final composition report
+      (real dataset adapted + composition report + integrity flags via `poker_adapter.py`;
+      **upstream label provenance still undocumented** — see `docs/POKER_DATASET_NOTES.md`)
+- [x] Nuisance-only baseline strong enough to be a real test (made-hand alone: AUROC 0.885)
+- [x] Instruction confound measurable via a question-stripped prompt variant
 - [x] Audited prompt-end/decision-token activation extractor with logged token index and boundary tests
       (`deception_circuits/paper_extraction.py`, `tests/test_extraction_integrity.py`; implemented and tested against stubs — **not yet run on a real subject model**)
 - [x] Poker matched subsets and residualized/conditional nuisance analyses
