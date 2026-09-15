@@ -6,9 +6,16 @@
 - [x] Config, commit, package/environment provenance, repeated seeds, AUROC/PR-AUC, grouped CIs
 - [x] Prompt-text, response-text diagnostic, majority, and optional nuisance-only baselines
 - [ ] Dataset construction, labeling prompts, public examples, and final composition report
+      (requirements and sourcing options: `docs/DATASET_REQUIREMENTS.md` — **this is the one blocker**)
 - [x] Audited prompt-end/decision-token activation extractor with logged token index and boundary tests
       (`deception_circuits/paper_extraction.py`, `tests/test_extraction_integrity.py`; implemented and tested against stubs — **not yet run on a real subject model**)
-- [ ] Poker matched subsets and residualized/conditional nuisance analyses
+- [x] Poker matched subsets and residualized/conditional nuisance analyses
+      (`deception_circuits/paper_confounds.py`, `tests/test_confound_controls.py`; every control
+      reports `not_run` with a reason when the metadata it needs is absent — **no real metadata yet**)
+- [x] Group-safe *and* label-stratified splits with per-partition balance reporting
+- [x] Calibration (ECE) in the strict metric set, canonical implementation shared with legacy
+- [x] Learning curves over multiple independent group-level subsamples per size
+- [x] Seed-level variability reported alongside grouped bootstrap CIs
 - [ ] Cross-context/model protocol with source-validation-only selection
 - [ ] Behavioral endpoint independent of probe score, paired intervention analysis, and quality controls
 - [ ] Positive/negative steering, true patching, shuffled-label, wrong-layer, and timing controls

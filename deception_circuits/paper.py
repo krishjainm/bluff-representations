@@ -26,7 +26,7 @@ from sklearn.metrics import (accuracy_score, average_precision_score,
                              balanced_accuracy_score, confusion_matrix,
                              f1_score, matthews_corrcoef, precision_score,
                              recall_score, roc_auc_score)
-from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import GroupShuffleSplit, StratifiedGroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import OneHotEncoder
@@ -62,6 +62,8 @@ class PaperConfig:
     seed: int = 2026
     split_manifest_path: str | None = None
     group_column: str = "split_group_id"
+    split_strategy: str = "grouped_stratified"
+    stratify_columns: list[str] = field(default_factory=lambda: ["label"])
     test_fraction: float = 0.20
     validation_fraction: float = 0.10
     probe_c: float = 1.0
@@ -84,6 +86,8 @@ class PaperConfig:
     intervention_strengths: list[float] = field(default_factory=list)
     decoding_settings: dict[str, Any] = field(default_factory=dict)
     nuisance_columns: list[str] = field(default_factory=list)
+    learning_curve_sizes: list[int] = field(default_factory=list)
+    learning_curve_subsamples: int = 5
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "PaperConfig":
@@ -172,32 +176,115 @@ def load_activations(
     return np.stack(tensors)
 
 
+def _resolve_stratify_columns(df: pd.DataFrame, config: PaperConfig, n_folds: int) -> list[str]:
+    """Pick the richest stratification the group count can actually support.
+
+    Stratifying on more columns is better balanced but needs more groups per
+    stratum.  Rather than failing on a small dataset, drop the optional columns
+    and record what was actually used in the manifest.
+    """
+    requested = [c for c in config.stratify_columns if c in df.columns]
+    if "label" not in requested:
+        requested = ["label"] + requested
+    group_col = config.group_column if config.group_column in df else "base_item_id"
+    while len(requested) > 1:
+        key = df[requested].astype(str).agg("|".join, axis=1)
+        groups_per_stratum = df.assign(_k=key).groupby("_k")[group_col].nunique()
+        if groups_per_stratum.min() >= n_folds:
+            return requested
+        requested = requested[:-1]
+    return requested
+
+
+def _stratified_group_split(
+    df: pd.DataFrame, groups: np.ndarray, strata: np.ndarray, fraction: float, seed: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """One group-safe, label-stratified holdout of approximately ``fraction``."""
+    n_folds = int(max(2, min(round(1.0 / fraction), len(np.unique(groups)))))
+    splitter = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=seed)
+    keep_idx, hold_idx = next(splitter.split(df, y=strata, groups=groups))
+    return keep_idx, hold_idx
+
+
 def make_split_manifest(df: pd.DataFrame, config: PaperConfig) -> dict[str, Any]:
-    """Create a deterministic group-safe train/validation/test manifest."""
+    """Create a deterministic group-safe train/validation/test manifest.
+
+    ``split_strategy='grouped_stratified'`` (the default) keeps groups intact
+    *and* balances the label across partitions, so a small dataset cannot land a
+    partition with only one class.  ``'grouped_random'`` is the earlier
+    group-only behaviour, kept for comparison.
+    """
     group_col = config.group_column if config.group_column in df else "base_item_id"
     groups = df[group_col].astype(str).to_numpy()
     unique_groups = np.unique(groups)
     if len(unique_groups) < 6:
         raise ResearchIntegrityError("At least six independent groups are required for paper splits")
-    # GroupShuffleSplit deliberately avoids row-level leakage.  Its deterministic
-    # split is preserved verbatim rather than recalculated at later stages.
-    outer = GroupShuffleSplit(n_splits=1, test_size=config.test_fraction, random_state=config.seed)
-    trainval_idx, test_idx = next(outer.split(df, groups=groups))
-    trainval = df.iloc[trainval_idx]
+    if config.split_strategy not in ("grouped_stratified", "grouped_random"):
+        raise ResearchIntegrityError(
+            f"split_strategy must be grouped_stratified or grouped_random, got {config.split_strategy!r}")
+
     rel_val = config.validation_fraction / (1.0 - config.test_fraction)
-    inner = GroupShuffleSplit(n_splits=1, test_size=rel_val, random_state=config.seed + 1)
-    train_idx_local, val_idx_local = next(inner.split(trainval, groups=trainval[group_col].astype(str)))
-    train_idx = trainval_idx[train_idx_local]
-    val_idx = trainval_idx[val_idx_local]
+    if config.split_strategy == "grouped_stratified":
+        n_folds = int(max(2, round(1.0 / config.test_fraction)))
+        stratify_columns = _resolve_stratify_columns(df, config, n_folds)
+        strata = df[stratify_columns].astype(str).agg("|".join, axis=1).to_numpy()
+        trainval_idx, test_idx = _stratified_group_split(
+            df, groups, strata, config.test_fraction, config.seed)
+        trainval = df.iloc[trainval_idx]
+        train_local, val_local = _stratified_group_split(
+            trainval, groups[trainval_idx], strata[trainval_idx], rel_val, config.seed + 1)
+        train_idx, val_idx = trainval_idx[train_local], trainval_idx[val_local]
+    else:
+        stratify_columns = []
+        # GroupShuffleSplit avoids row-level leakage but does not balance labels.
+        outer = GroupShuffleSplit(n_splits=1, test_size=config.test_fraction, random_state=config.seed)
+        trainval_idx, test_idx = next(outer.split(df, groups=groups))
+        trainval = df.iloc[trainval_idx]
+        inner = GroupShuffleSplit(n_splits=1, test_size=rel_val, random_state=config.seed + 1)
+        train_local, val_local = next(inner.split(trainval, groups=trainval[group_col].astype(str)))
+        train_idx, val_idx = trainval_idx[train_local], trainval_idx[val_local]
+
     result = {
-        "schema_version": 1, "dataset_sha256": _sha256(Path(config.dataset_path)),
+        "schema_version": 2, "dataset_sha256": _sha256(Path(config.dataset_path)),
         "group_column": group_col, "seed": config.seed,
+        "split_strategy": config.split_strategy,
+        "stratify_columns": stratify_columns,
         "train": df.iloc[train_idx]["sample_id"].tolist(),
         "validation": df.iloc[val_idx]["sample_id"].tolist(),
         "test": df.iloc[test_idx]["sample_id"].tolist(),
     }
+    result["partition_summary"] = summarize_partitions(df, result)
     assert_split_integrity(df, result)
     return result
+
+
+def summarize_partitions(df: pd.DataFrame, manifest: dict[str, Any]) -> dict[str, Any]:
+    """Per-partition row/group counts and label balance, for the manifest and audit."""
+    group_col = manifest.get("group_column", "base_item_id")
+    summary: dict[str, Any] = {}
+    for name in ("train", "validation", "test"):
+        rows = df[df.sample_id.isin(set(manifest[name]))]
+        counts = rows.label.value_counts().sort_index()
+        summary[name] = {
+            "n_rows": int(len(rows)),
+            "n_groups": int(rows[group_col].nunique()) if group_col in rows.columns else None,
+            "label_counts": {str(k): int(v) for k, v in counts.items()},
+            "positive_rate": float(rows.label.astype(float).mean()) if len(rows) else None,
+        }
+    return summary
+
+
+def assert_partition_label_availability(df: pd.DataFrame, manifest: dict[str, Any]) -> None:
+    """Every partition must carry both classes, or no metric there is meaningful."""
+    summary = manifest.get("partition_summary") or summarize_partitions(df, manifest)
+    for name, info in summary.items():
+        present = {k for k, v in info["label_counts"].items() if v > 0}
+        if present != {"0", "1"}:
+            raise ResearchIntegrityError(
+                f"{name} partition does not contain both label classes "
+                f"(counts: {info['label_counts']}). Increase the dataset, rebalance it, or "
+                "use split_strategy=grouped_stratified."
+            )
 
 
 def assert_split_integrity(df: pd.DataFrame, manifest: dict[str, Any]) -> None:
@@ -211,6 +298,7 @@ def assert_split_integrity(df: pd.DataFrame, manifest: dict[str, Any]) -> None:
     assignments["partition"] = assignments.sample_id.map({sid: p for p, ids in parts.items() for sid in ids})
     if assignments.groupby(group_col).partition.nunique().gt(1).any():
         raise ResearchIntegrityError("Group leakage detected across partitions")
+    assert_partition_label_availability(df, manifest)
 
 
 def save_manifest(manifest: dict[str, Any], path: str | Path) -> None:
@@ -218,7 +306,41 @@ def save_manifest(manifest: dict[str, Any], path: str | Path) -> None:
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _metrics(y: np.ndarray, p: np.ndarray) -> dict[str, Any]:
+def binary_ece(probabilities: np.ndarray, labels: np.ndarray, n_bins: int = 15) -> float:
+    """Equal-width expected calibration error for binary labels.
+
+    This is the canonical implementation for the strict path;
+    ``linear_probe.binary_ece`` re-exports it so the two cannot drift apart.
+    Unlike the legacy version it raises on empty input rather than returning a
+    calibrated-looking 0.0.
+    """
+    probabilities = np.asarray(probabilities, dtype=np.float64).ravel()
+    labels = np.asarray(labels, dtype=np.float64).ravel()
+    if len(probabilities) == 0:
+        raise ResearchIntegrityError("Cannot compute ECE on an empty prediction set")
+    if len(probabilities) != len(labels):
+        raise ResearchIntegrityError("ECE inputs must have equal length")
+    if n_bins < 1:
+        raise ResearchIntegrityError("n_bins must be >= 1")
+    edges = np.linspace(0.0, 1.0, n_bins + 1)
+    bin_ids = np.clip(np.digitize(probabilities, edges, right=False) - 1, 0, n_bins - 1)
+    ece = 0.0
+    for b in range(n_bins):
+        mask = bin_ids == b
+        if not mask.any():
+            continue
+        ece += (mask.sum() / len(probabilities)) * abs(labels[mask].mean() - probabilities[mask].mean())
+    return float(ece)
+
+
+def compute_binary_metrics(y: np.ndarray, p: np.ndarray, *, ece_bins: int = 15) -> dict[str, Any]:
+    """Full binary classification metric set, including calibration error.
+
+    Raises rather than degrading to a chance-level score when a partition lacks
+    both classes: a silent 0.5 would be indistinguishable from a real result.
+    """
+    y = np.asarray(y)
+    p = np.asarray(p, dtype=np.float64)
     if len(np.unique(y)) != 2:
         raise ResearchIntegrityError("Metrics require both label classes")
     pred = (p >= .5).astype(int)
@@ -227,7 +349,13 @@ def _metrics(y: np.ndarray, p: np.ndarray) -> dict[str, Any]:
             "accuracy": float(accuracy_score(y, pred)), "balanced_accuracy": float(balanced_accuracy_score(y, pred)),
             "precision": float(precision_score(y, pred, zero_division=0)), "recall": float(recall_score(y, pred, zero_division=0)),
             "f1": float(f1_score(y, pred, zero_division=0)), "mcc": float(matthews_corrcoef(y, pred)),
+            "ece": binary_ece(p, y, n_bins=ece_bins), "n": int(len(y)),
+            "positive_rate": float(np.mean(np.asarray(y, dtype=float))),
             "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)}}
+
+
+# Internal alias kept so existing call sites read compactly.
+_metrics = compute_binary_metrics
 
 
 def grouped_bootstrap_ci(
@@ -307,22 +435,131 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
     test_groups = df.iloc[[index[s] for s in manifest["test"]]][group_col].to_numpy()
     runs = []
     for seed in range(config.seed, config.seed + config.n_seeds):
-        val_scores, models = [], []
-        for layer in range(activations.shape[1]):
-            clf = LogisticRegression(C=config.probe_c, class_weight="balanced", max_iter=5000, random_state=seed)
-            clf.fit(xtr[:, layer], ytr)
-            val_scores.append(_metrics(yva, clf.predict_proba(xva[:, layer])[:, 1])["auroc"]); models.append(clf)
-        selected = int(np.argmax(val_scores))
-        test_prob = models[selected].predict_proba(xte[:, selected])[:, 1]
+        selected, val_scores, model = _select_layer_on_validation(xtr, ytr, xva, yva, config, seed)
+        test_prob = model.predict_proba(xte[:, selected])[:, 1]
         runs.append({"seed": seed, "selected_layer": selected, "validation_auroc": val_scores[selected],
+                     "validation_auroc_by_layer": [float(v) for v in val_scores],
                      "test": _metrics(yte, test_prob),
                      "test_auroc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="auroc"),
                      "test_pr_auc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="pr_auc")})
-    return {"selection_partition": "validation", "test_partition_used_for_selection": False,
-            "n_train": len(ytr), "n_validation": len(yva), "n_test": len(yte), "runs": runs,
-            "test_auroc_mean": float(np.mean([r["test"]["auroc"] for r in runs])),
-            "test_pr_auc_mean": float(np.mean([r["test"]["pr_auc"] for r in runs])),
-            "baselines": run_baselines(df, manifest, config)}
+    result = {"selection_partition": "validation", "test_partition_used_for_selection": False,
+              "n_train": len(ytr), "n_validation": len(yva), "n_test": len(yte), "runs": runs,
+              "test_auroc_mean": float(np.mean([r["test"]["auroc"] for r in runs])),
+              "test_pr_auc_mean": float(np.mean([r["test"]["pr_auc"] for r in runs])),
+              "seed_summary": summarize_across_seeds(runs),
+              "baselines": run_baselines(df, manifest, config)}
+    if config.learning_curve_sizes:
+        result["learning_curve"] = run_learning_curve(df, activations, manifest, config)
+    return result
+
+
+def _select_layer_on_validation(
+    xtr: np.ndarray, ytr: np.ndarray, xva: np.ndarray, yva: np.ndarray,
+    config: PaperConfig, seed: int,
+) -> tuple[int, list[float], LogisticRegression]:
+    """Fit one probe per layer on train, return the best-by-validation layer.
+
+    The returned model is the one fitted for the selected layer, so reported test
+    metrics always come from the model that validation actually chose.
+    """
+    val_scores: list[float] = []
+    models: list[LogisticRegression] = []
+    for layer in range(xtr.shape[1]):
+        clf = LogisticRegression(C=config.probe_c, class_weight="balanced", max_iter=5000, random_state=seed)
+        clf.fit(xtr[:, layer], ytr)
+        val_scores.append(_metrics(yva, clf.predict_proba(xva[:, layer])[:, 1])["auroc"])
+        models.append(clf)
+    selected = int(np.argmax(val_scores))
+    return selected, val_scores, models[selected]
+
+
+def summarize_across_seeds(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    """Seed-level variability, reported alongside the within-seed grouped CIs.
+
+    These are different sources of uncertainty: the grouped bootstrap covers
+    sampling of poker hands, this covers probe-fitting randomness.  Reviewer B
+    asked for both.
+    """
+    def spread(values: list[float]) -> dict[str, Any]:
+        arr = np.asarray(values, dtype=float)
+        return {"mean": float(arr.mean()), "std": float(arr.std(ddof=1)) if len(arr) > 1 else 0.0,
+                "median": float(np.median(arr)),
+                "iqr": [float(np.quantile(arr, .25)), float(np.quantile(arr, .75))],
+                "min": float(arr.min()), "max": float(arr.max()), "n_seeds": int(len(arr))}
+    layers = [int(r["selected_layer"]) for r in runs]
+    return {
+        "test_auroc": spread([r["test"]["auroc"] for r in runs]),
+        "test_pr_auc": spread([r["test"]["pr_auc"] for r in runs]),
+        "test_ece": spread([r["test"]["ece"] for r in runs]),
+        "selected_layer": {"values": layers, "modal": max(set(layers), key=layers.count),
+                           "n_distinct": len(set(layers))},
+    }
+
+
+def run_learning_curve(
+    df: pd.DataFrame, activations: np.ndarray, manifest: dict[str, Any], config: PaperConfig,
+) -> dict[str, Any]:
+    """Sample-size curve using multiple *independent* training subsamples per size.
+
+    Reviewer B's complaint was that sample-size comparisons used one arbitrary
+    subset with no uncertainty.  Each size here is evaluated over
+    ``learning_curve_subsamples`` independent draws, subsampled at **group**
+    level so a smaller training set is genuinely fewer poker hands rather than
+    fewer rows from the same hands.  Layer selection stays on validation.
+    """
+    index = {sid: i for i, sid in enumerate(df.sample_id)}
+    group_col = manifest.get("group_column", "base_item_id")
+    labels = df.label.to_numpy(int)
+    train_ids = list(manifest["train"])
+    train_groups = df.set_index("sample_id").loc[train_ids, group_col].astype(str)
+    unique_groups = np.unique(train_groups.to_numpy())
+
+    val_pos = np.array([index[s] for s in manifest["validation"]])
+    test_pos = np.array([index[s] for s in manifest["test"]])
+    xva, yva = activations[val_pos], labels[val_pos]
+    xte, yte = activations[test_pos], labels[test_pos]
+
+    points: list[dict[str, Any]] = []
+    for size in sorted({int(s) for s in config.learning_curve_sizes}):
+        if size < 2 or size > len(unique_groups):
+            points.append({"n_train_groups": size, "status": "not_run",
+                           "reason": f"requested {size} training groups but {len(unique_groups)} are available"})
+            continue
+        replicates: list[dict[str, Any]] = []
+        for replicate in range(config.learning_curve_subsamples):
+            rng = np.random.default_rng(config.seed + 1000 * size + replicate)
+            chosen = rng.choice(unique_groups, size=size, replace=False)
+            ids = train_groups.index[train_groups.isin(set(chosen))].tolist()
+            pos = np.array([index[s] for s in ids])
+            if len(np.unique(labels[pos])) < 2:
+                continue
+            selected, val_scores, model = _select_layer_on_validation(
+                activations[pos], labels[pos], xva, yva, config, config.seed + replicate)
+            replicates.append({
+                "replicate": replicate, "n_train_rows": int(len(pos)),
+                "n_train_groups": int(len(chosen)), "selected_layer": selected,
+                # Identifies the draw without inlining the id list, so the curve
+                # stays auditable and reproducible without bloating the JSON.
+                "train_groups_sha256": hashlib.sha256(
+                    "|".join(sorted(map(str, chosen))).encode("utf-8")).hexdigest()[:16],
+                "validation_auroc": float(val_scores[selected]),
+                "test_auroc": float(_metrics(yte, model.predict_proba(xte[:, selected])[:, 1])["auroc"]),
+            })
+        if not replicates:
+            points.append({"n_train_groups": size, "status": "not_run",
+                           "reason": "no subsample of this size contained both label classes"})
+            continue
+        aurocs = np.asarray([r["test_auroc"] for r in replicates])
+        points.append({
+            "n_train_groups": size, "status": "ok", "n_replicates": len(replicates),
+            "test_auroc_mean": float(aurocs.mean()),
+            "test_auroc_std": float(aurocs.std(ddof=1)) if len(aurocs) > 1 else 0.0,
+            "test_auroc_median": float(np.median(aurocs)),
+            "test_auroc_range": [float(aurocs.min()), float(aurocs.max())],
+            "replicates": replicates,
+        })
+    return {"subsample_unit": "group", "requested_subsamples_per_size": config.learning_curve_subsamples,
+            "n_available_train_groups": int(len(unique_groups)), "points": points}
 
 
 def write_run_metadata(config: PaperConfig, output_dir: Path) -> None:
@@ -357,6 +594,18 @@ def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: Pa
             failures.append("grouped AUROC confidence intervals are missing")
         if "baselines" not in result:
             failures.append("baseline results are missing")
+        if "seed_summary" not in result:
+            failures.append("seed-level variability summary is missing")
+        if config is not None and config.learning_curve_sizes and "learning_curve" not in result:
+            failures.append("learning_curve_sizes is configured but no learning curve was produced")
+        if config is not None and config.nuisance_columns:
+            confounds = root / "confound_results.json"
+            if not confounds.is_file():
+                failures.append(
+                    "nuisance_columns are configured but confound_results.json is missing; "
+                    "run analyze-confounds")
+            elif "metadata_availability" not in json.loads(confounds.read_text()):
+                failures.append("confound_results.json has no metadata availability report")
         manifest = json.loads(manifest_file.read_text())
         if df is not None:
             try:
@@ -364,3 +613,30 @@ def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: Pa
             except ResearchIntegrityError as exc:
                 failures.append(f"split integrity failure: {exc}")
     return failures
+
+
+def audit_notes(output_dir: str | Path, config: PaperConfig | None = None) -> list[str]:
+    """Informational findings that are not audit failures.
+
+    A control that could not run for a genuine data reason is a result to report,
+    not a defect to block on; keeping these out of :func:`audit_run` means a PASS
+    still means "nothing is wrong" rather than "nothing is missing".
+    """
+    root = Path(output_dir)
+    notes: list[str] = []
+    confounds = root / "confound_results.json"
+    if confounds.is_file():
+        result = json.loads(confounds.read_text())
+        for name in result.get("unavailable_analyses") or []:
+            reason = (result.get("subsets", {}).get(name) or {}).get("reason", "unspecified")
+            notes.append(f"confound control {name!r} did not run: {reason}")
+        blocked = result.get("metadata_availability", {}).get("unavailable_analyses") or []
+        if blocked:
+            notes.append("analyses blocked by missing metadata: " + ", ".join(blocked))
+    probe = root / "probe_results.json"
+    if probe.is_file():
+        curve = json.loads(probe.read_text()).get("learning_curve") or {}
+        for point in curve.get("points", []):
+            if point.get("status") == "not_run":
+                notes.append(f"learning-curve size {point['n_train_groups']} did not run: {point['reason']}")
+    return notes

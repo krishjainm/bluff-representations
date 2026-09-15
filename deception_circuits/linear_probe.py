@@ -78,25 +78,9 @@ import json
 from pathlib import Path
 
 
-def binary_ece(probs: np.ndarray, labels: np.ndarray, n_bins: int = 15) -> float:
-    """Expected calibration error for binary labels (paper-style metric)."""
-    probs = np.asarray(probs).flatten().astype(np.float64)
-    labels = np.asarray(labels).flatten().astype(np.float64)
-    if len(probs) == 0:
-        return 0.0
-    bins = np.linspace(0.0, 1.0, n_bins + 1)
-    bin_ids = np.digitize(probs, bins, right=False) - 1
-    bin_ids = np.clip(bin_ids, 0, n_bins - 1)
-    ece = 0.0
-    n = len(probs)
-    for b in range(n_bins):
-        mask = bin_ids == b
-        if not np.any(mask):
-            continue
-        acc = labels[mask].mean()
-        conf = probs[mask].mean()
-        ece += (mask.sum() / n) * abs(acc - conf)
-    return float(ece)
+# Canonical implementation lives in the strict paper path; re-exported here so
+# legacy callers and the paper pipeline can never drift apart.
+from .paper import binary_ece  # noqa: E402  (kept at original definition site)
 
 
 class DeceptionLinearProbe(nn.Module):

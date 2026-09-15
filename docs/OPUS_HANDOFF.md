@@ -53,6 +53,7 @@ deception-paper make-splits --config my_run.yaml
 # Loads subject-model weights and runs real forward passes; requires the flag.
 deception-paper collect-activations --config my_run.yaml --confirm-model-load
 deception-paper train-probes --config my_run.yaml
+deception-paper analyze-confounds --config my_run.yaml
 deception-paper audit --config my_run.yaml
 ```
 
@@ -310,3 +311,85 @@ activation directory. The console script is not installed in `.venv`; use
 no behavioral endpoint measured, no SAE result, no paper metric. The repository
 contains only a 4-row `quick_demo_data/quick_demo.csv` that does not carry the
 canonical schema.
+
+### 2026-09-15 — P2 chunk: confound controls, stratified splits, curves
+
+**Status:** P2 items 1–3 are implemented and tested. P2 item 4 ("run only after
+data and extraction provenance are auditable") is still blocked: no real data
+exists. No model was loaded and no API call was made.
+
+`docs/DATASET_REQUIREMENTS.md` is new and answers "what is actually needed to
+close P1". The substantive point in it: **decide whether the model is the actor
+or an observer before collecting anything.** If the subject model chooses the
+action and the label describes its own bluff, then P3's causal endpoint is native
+and Reviewer A's "did steering change deception-specific behavior" is answerable.
+If the model merely reads a human hand history, that question has no native
+endpoint and the causal claim should be dropped. Verified sourcing: the
+`uoftcprg/phh-dataset` poker hand histories are MIT-licensed and include the
+10,000-hand Pluribus subset, which logs hole cards throughout and so avoids the
+showdown-selection bias of the scraped online subsets. None of these ship bluff
+labels — the label must be derived by a pre-registered mechanical rule over an
+aggressive action and a computed equity figure, with the ambiguous middle band
+excluded rather than forced into a class.
+
+New `deception_circuits/paper_confounds.py`:
+
+- `describe_metadata_availability` / `validate_nuisance_metadata` report per
+  column presence, coverage, and inferred kind, and map each of the seven named
+  analyses to the columns it needs. A control that cannot run is emitted as
+  `not_run` **with a reason**, so a missing control is visible in the artifact
+  rather than absent from it.
+- `bluff_vs_value_subset` restricts to aggressive actions, which is the
+  comparison that separates bluff-like deception from mere aggression.
+- `build_matched_subset` equalises label counts inside every nuisance stratum
+  (exact match on categoricals, quantile bins on continuous), drops and counts
+  single-class strata, and is deterministic given a seed.
+- `nuisance_decodability` dispatches on column type: multinomial logistic with a
+  majority baseline for categoricals, ridge with R² against a train-mean
+  predictor for continuous. An earlier version stringified `hand_strength` into
+  hundreds of "classes" and reported a meaningless accuracy; that is fixed and
+  a degenerate categorical target is now refused with an explanation.
+- `residualize_activations` fits the nuisance removal on **train only** and
+  applies the training coefficients to both partitions, so the control itself
+  cannot leak. `controlled_probe_analysis` reports unadjusted and controlled
+  AUROC plus the drop; neither direction is treated as the expected result.
+- `run_confound_suite` never selects a layer — it consumes the
+  validation-selected layer from `probe_results.json`.
+
+In `paper.py`:
+
+- `binary_ece` migrated in from `linear_probe.py`, which now re-exports it so
+  the two cannot drift. The strict version raises on empty input instead of
+  returning a calibrated-looking `0.0`.
+- `compute_binary_metrics` (public; `_metrics` is now an alias) adds `ece`, `n`,
+  and `positive_rate`.
+- Splits are group-safe **and** label-stratified by default
+  (`split_strategy: grouped_stratified`, via `StratifiedGroupKFold`). Requesting
+  a richer stratification than the group count supports drops optional columns
+  and records what was used rather than failing. Manifests are `schema_version: 2`
+  and carry a `partition_summary`; a single-class partition is a hard error.
+- `summarize_across_seeds` reports mean/std/median/IQR and selected-layer
+  stability — a different uncertainty source from the grouped bootstrap, which
+  is what Reviewer B asked for.
+- `run_learning_curve` subsamples at **group** level over
+  `learning_curve_subsamples` independent draws per size, so a smaller training
+  set is fewer poker hands rather than fewer rows from the same hands. Each
+  replicate records a 16-char hash of its chosen group set, which makes the draws
+  auditable and reproducible without inlining id lists.
+- `audit_notes` is separate from `audit_run`. A control that legitimately could
+  not run is a note, not a failure, so PASS keeps meaning "nothing is wrong".
+
+CLI gained `analyze-confounds`, which refuses to run before `train-probes`
+because it reuses that stage's validation-selected layer.
+
+Tests: **79 passed** (`tests/` — 26 extraction, 32 confound, 16 split/curve,
+5 paper integrity). Full CLI smoke test on stub artifacts:
+`validate-data → make-splits → train-probes → analyze-confounds → audit` all
+pass, and audit reports `equity_matched` as not-run because the stub fixture's
+`hand_strength` nearly separates the label, so equity-matching leaves no
+two-class stratum. That is the correct behaviour and a good illustration of what
+the control is for.
+
+**Still true:** no real dataset, no real activations, no API call, no behavioral
+endpoint, no SAE result, no paper metric. Every confound number produced so far
+is chance-level stub output, as expected.

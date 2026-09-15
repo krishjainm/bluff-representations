@@ -10,6 +10,7 @@ deception-paper make-splits --config my_run.yaml
 # Loads subject-model weights and runs real forward passes; requires the flag.
 deception-paper collect-activations --config my_run.yaml --confirm-model-load
 deception-paper train-probes --config my_run.yaml
+deception-paper analyze-confounds --config my_run.yaml
 deception-paper audit --config my_run.yaml
 ```
 

@@ -7,11 +7,12 @@ from pathlib import Path
 
 import yaml
 
-from .paper import (PaperConfig, audit_run, load_activations, make_split_manifest,
+from .paper import (PaperConfig, audit_notes, audit_run, load_activations, make_split_manifest,
                     run_probe_experiment, save_manifest, validate_dataset, write_run_metadata)
 from .paper_extraction import ExtractionSpec, run_extraction
 
-COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes", "audit")
+COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes",
+            "analyze-confounds", "audit")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -43,7 +44,9 @@ def main() -> None:
 
     if args.command == "audit":
         errors = audit_run(out, validate_dataset(config.dataset_path), config)
-        print("PASS" if not errors else "FAIL\n" + "\n".join(errors))
+        print("PASS" if not errors else "FAIL\n" + "\n".join(f"  FAIL: {e}" for e in errors))
+        for note in audit_notes(out, config):
+            print(f"  note: {note}")
         raise SystemExit(bool(errors))
 
     df = validate_dataset(config.dataset_path)
@@ -80,6 +83,34 @@ def main() -> None:
         )
         print(f"extracted={manifest['n_newly_extracted']} resumed={manifest['n_resumed']} "
               f"total={manifest['n_samples']} shape={manifest['activation_shape']}")
+        return
+
+    if args.command == "analyze-confounds":
+        from .paper_confounds import run_confound_suite
+
+        path = _manifest_path(config, out)
+        if not path.is_file():
+            raise FileNotFoundError("Create a split manifest before analyzing confounds")
+        split_manifest = json.loads(path.read_text())
+        probe_results = out / "probe_results.json"
+        if not probe_results.is_file():
+            raise FileNotFoundError(
+                "Run train-probes first: the confound suite reuses the validation-selected "
+                "layer rather than choosing its own, so it cannot leak test information."
+            )
+        runs = json.loads(probe_results.read_text())["runs"]
+        # Modal selected layer across seeds; selection happened on validation upstream.
+        layers = [int(r["selected_layer"]) for r in runs]
+        layer = max(set(layers), key=layers.count)
+        activations = load_activations(df, config.activation_dir, config)
+        result = run_confound_suite(activations, df, split_manifest, config, layer=layer)
+        result["selected_layer_source"] = {
+            "from": "probe_results.json", "per_seed_layers": layers, "rule": "modal layer across seeds"}
+        (out / "confound_results.json").write_text(json.dumps(result, indent=2) + "\n")
+        unavailable = result["metadata_availability"]["unavailable_analyses"]
+        print(out / "confound_results.json")
+        if unavailable:
+            print("unavailable without more metadata: " + ", ".join(unavailable))
         return
 
     if args.command == "train-probes":

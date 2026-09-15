@@ -1,0 +1,241 @@
+"""Tests for P2 split stratification, calibration, and learning curves."""
+from pathlib import Path
+import sys
+
+import numpy as np
+import pandas as pd
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from _stubs import StubHiddenStateProvider
+
+from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
+                                      assert_partition_label_availability, assert_split_integrity,
+                                      load_activations, make_split_manifest, run_probe_experiment,
+                                      summarize_across_seeds, summarize_partitions,
+                                      validate_dataset)
+from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
+
+STUB_MODEL = "stub/tiny-test-model"
+
+
+def _dataset(tmp_path: Path, n_groups: int = 30, *, imbalance: float | None = None) -> Path:
+    rows = []
+    for group in range(n_groups):
+        # With imbalance set, only that fraction of groups carries a positive row.
+        labels = (0, 1) if imbalance is None or group < int(n_groups * imbalance) else (0,)
+        for label in labels:
+            rows.append({"sample_id": f"{group}-{label}", "base_item_id": group,
+                         "split_group_id": group, "statement": f"hand {group} variant {label}",
+                         "response": "raise", "label": label, "scenario": "poker",
+                         "difficulty_bucket": "hard" if group % 2 else "easy"})
+    csv = tmp_path / "dataset.csv"
+    pd.DataFrame(rows).to_csv(csv, index=False)
+    return csv
+
+
+def _fixture(tmp_path: Path, **kwargs):
+    csv = _dataset(tmp_path, **kwargs)
+    df = pd.read_csv(csv)
+    activations = tmp_path / "activations"
+    run_extraction(df, ExtractionSpec(subject_model=STUB_MODEL, prompt_template_id="poker_action_v1"),
+                   activations, StubHiddenStateProvider())
+    return csv, activations
+
+
+def _config(csv: Path, activations: Path, tmp_path: Path, **overrides) -> PaperConfig:
+    base = dict(experiment_name="splits", dataset_path=str(csv), activation_dir=str(activations),
+                output_dir=str(tmp_path / "out"), subject_model=STUB_MODEL,
+                prompt_template_id="poker_action_v1", n_seeds=2, bootstrap_resamples=30)
+    base.update(overrides)
+    return PaperConfig(**base)
+
+
+# --- stratified splits ----------------------------------------------------------
+
+def test_stratified_split_is_the_default_and_is_recorded(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path))
+    assert manifest["split_strategy"] == "grouped_stratified"
+    assert manifest["stratify_columns"] == ["label"]
+    assert manifest["schema_version"] == 2
+
+
+def test_stratified_split_keeps_groups_intact(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path))
+    by_id = {sid: name for name in ("train", "validation", "test") for sid in manifest[name]}
+    assert df.assign(p=df.sample_id.map(by_id)).groupby("split_group_id").p.nunique().max() == 1
+
+
+def test_stratified_split_balances_labels_across_partitions(tmp_path):
+    """The stratified strategy should hold the positive rate roughly constant."""
+    csv = _dataset(tmp_path, n_groups=40, imbalance=0.5)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path))
+    rates = [manifest["partition_summary"][p]["positive_rate"]
+             for p in ("train", "validation", "test")]
+    assert max(rates) - min(rates) < 0.20, rates
+
+
+def test_split_is_deterministic_for_a_given_seed(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    config = _config(csv, tmp_path / "a", tmp_path)
+    assert make_split_manifest(df, config)["test"] == make_split_manifest(df, config)["test"]
+    other = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path, seed=99))
+    assert other["test"] != make_split_manifest(df, config)["test"]
+
+
+def test_grouped_random_strategy_remains_available(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path,
+                                               split_strategy="grouped_random"))
+    assert manifest["split_strategy"] == "grouped_random"
+    assert manifest["stratify_columns"] == []
+    assert_split_integrity(df, manifest)
+
+
+def test_unknown_split_strategy_is_rejected(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    with pytest.raises(ResearchIntegrityError, match="split_strategy must be"):
+        make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path, split_strategy="random"))
+
+
+def test_stratification_degrades_gracefully_when_groups_are_scarce(tmp_path):
+    """Requesting a rich stratification on few groups drops columns, not the run."""
+    csv = _dataset(tmp_path, n_groups=8)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path,
+                                               stratify_columns=["label", "difficulty_bucket"]))
+    # Falls back to label-only rather than raising on a stratum with too few groups.
+    assert manifest["stratify_columns"] == ["label"]
+    assert_split_integrity(df, manifest)
+
+
+def test_partition_summary_reports_rows_groups_and_balance(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path))
+    summary = summarize_partitions(df, manifest)
+    assert sum(s["n_rows"] for s in summary.values()) == len(df)
+    assert sum(s["n_groups"] for s in summary.values()) == df.split_group_id.nunique()
+    for part in summary.values():
+        assert set(part["label_counts"]) == {"0", "1"}
+
+
+def test_single_class_partition_is_a_hard_error(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path))
+    # Force every positive row out of the test partition.
+    positives = set(df[df.label == 1].sample_id.astype(str))
+    manifest["test"] = [s for s in manifest["test"] if str(s) not in positives]
+    manifest["train"] = manifest["train"] + [s for s in df.sample_id if str(s) in positives
+                                             and s not in manifest["validation"]]
+    manifest.pop("partition_summary", None)
+    with pytest.raises(ResearchIntegrityError, match="does not contain both label classes"):
+        assert_partition_label_availability(df, manifest)
+
+
+# --- seed-level summary ---------------------------------------------------------
+
+def test_seed_summary_reports_spread_and_layer_stability():
+    runs = [{"seed": 1, "selected_layer": 2, "test": {"auroc": 0.8, "pr_auc": 0.7, "ece": 0.1}},
+            {"seed": 2, "selected_layer": 2, "test": {"auroc": 0.9, "pr_auc": 0.8, "ece": 0.2}},
+            {"seed": 3, "selected_layer": 3, "test": {"auroc": 0.7, "pr_auc": 0.6, "ece": 0.3}}]
+    summary = summarize_across_seeds(runs)
+    assert summary["test_auroc"]["mean"] == pytest.approx(0.8)
+    assert summary["test_auroc"]["n_seeds"] == 3
+    assert summary["test_auroc"]["std"] > 0
+    assert summary["selected_layer"]["modal"] == 2
+    assert summary["selected_layer"]["n_distinct"] == 2
+    assert "test_ece" in summary
+
+
+def test_probe_experiment_emits_a_seed_summary(tmp_path):
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    assert result["seed_summary"]["test_auroc"]["n_seeds"] == 2
+    assert "ece" in result["runs"][0]["test"]
+    assert len(result["runs"][0]["validation_auroc_by_layer"]) == 4
+
+
+# --- learning curves -----------------------------------------------------------
+
+def test_learning_curve_uses_multiple_independent_subsamples(tmp_path):
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[4, 8, 12],
+                     learning_curve_subsamples=3)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    curve = result["learning_curve"]
+    assert curve["subsample_unit"] == "group"
+    ok = [p for p in curve["points"] if p["status"] == "ok"]
+    assert len(ok) == 3
+    for point in ok:
+        # Independent replicates, each with its own uncertainty contribution.
+        assert point["n_replicates"] == 3
+        assert len({r["n_train_rows"] for r in point["replicates"]}) >= 1
+        assert point["test_auroc_std"] >= 0.0
+        assert point["test_auroc_range"][0] <= point["test_auroc_mean"] <= point["test_auroc_range"][1]
+    assert [p["n_train_groups"] for p in ok] == [4, 8, 12]
+
+
+def test_learning_curve_subsamples_are_distinct_draws(tmp_path):
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[6],
+                     learning_curve_subsamples=4)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    point = result["learning_curve"]["points"][0]
+    # Assert on the draws themselves: a fixture with no learnable signal can give
+    # identical scores across genuinely different subsamples, so equal AUROCs
+    # would not prove the replicates collapsed.
+    draws = {r["train_groups_sha256"] for r in point["replicates"]}
+    assert len(draws) == 4
+    assert all(r["n_train_groups"] == 6 for r in point["replicates"])
+
+
+def test_learning_curve_reports_an_oversized_request_as_not_run(tmp_path):
+    csv, activation_dir = _fixture(tmp_path, n_groups=12)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[4, 9999],
+                     learning_curve_subsamples=2)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    points = {p["n_train_groups"]: p for p in result["learning_curve"]["points"]}
+    assert points[9999]["status"] == "not_run"
+    assert "available" in points[9999]["reason"]
+    assert points[4]["status"] == "ok"
+
+
+def test_learning_curve_is_absent_unless_configured(tmp_path):
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    assert "learning_curve" not in result
+
+
+def test_learning_curve_is_reproducible(tmp_path):
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[8],
+                     learning_curve_subsamples=3)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    activations = load_activations(df, activation_dir, config)
+    first = run_probe_experiment(df, activations, manifest, config)["learning_curve"]
+    second = run_probe_experiment(df, activations, manifest, config)["learning_curve"]
+    assert first == second
