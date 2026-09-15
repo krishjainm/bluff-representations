@@ -188,6 +188,25 @@ class SparseAutoencoder(nn.Module):
 # Input normalization
 # --------------------------------------------------------------------------- #
 
+def resolve_device(device: str | torch.device) -> torch.device:
+    """Resolve a device string, refusing a silent fallback to CPU.
+
+    A run that asked for cuda and quietly got cpu would take hours instead of
+    minutes and look like it had simply been slow, so an unavailable device is an
+    error rather than a downgrade.
+    """
+    resolved = torch.device(device)
+    if resolved.type == "cuda" and not torch.cuda.is_available():
+        raise ResearchIntegrityError(
+            "device='cuda' was requested but torch reports no CUDA device. Refusing to fall "
+            "back to CPU silently: an SAE of this width trains for hours on CPU.")
+    return resolved
+
+
+def _module_device(model: nn.Module) -> torch.device:
+    return next(model.parameters()).device
+
+
 def fit_input_normalizer(x_train: np.ndarray) -> dict[str, Any]:
     """Centre and rescale so ``E||x|| == sqrt(d)``, fitted on train only."""
     x_train = np.asarray(x_train, dtype=np.float64)
@@ -216,6 +235,7 @@ def apply_input_normalizer(x: np.ndarray, stats: dict[str, Any] | None) -> np.nd
 
 def train_sae(
     x_train: np.ndarray, x_validation: np.ndarray, config: SAEConfig,
+    *, device: str | torch.device = "cpu",
 ) -> tuple[SparseAutoencoder, dict[str, Any]]:
     """Train unsupervised on train, early-select the epoch on validation MSE.
 
@@ -228,12 +248,15 @@ def train_sae(
     if len(x_train) < config.batch_size:
         raise ResearchIntegrityError(
             f"{len(x_train)} training rows is fewer than batch_size={config.batch_size}")
+    target = resolve_device(device)
     normalizer = fit_input_normalizer(x_train) if config.normalize_inputs else None
-    train_tensor = torch.from_numpy(apply_input_normalizer(x_train, normalizer))
-    validation_tensor = torch.from_numpy(apply_input_normalizer(x_validation, normalizer))
+    train_tensor = torch.from_numpy(apply_input_normalizer(x_train, normalizer)).to(target)
+    validation_tensor = torch.from_numpy(apply_input_normalizer(x_validation, normalizer)).to(target)
 
     torch.manual_seed(config.seed)
-    model = SparseAutoencoder(x_train.shape[1], config)
+    if target.type == "cuda":
+        torch.cuda.manual_seed_all(config.seed)
+    model = SparseAutoencoder(x_train.shape[1], config).to(target)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     generator = torch.Generator().manual_seed(config.seed)
 
@@ -243,7 +266,9 @@ def train_sae(
     best_epoch = -1
     for epoch in range(config.epochs):
         model.train()
-        permutation = torch.randperm(len(train_tensor), generator=generator)
+        # Permutation is generated on CPU so the shuffle order is identical
+        # regardless of device; only the arithmetic moves.
+        permutation = torch.randperm(len(train_tensor), generator=generator).to(target)
         epoch_losses: list[float] = []
         for start in range(0, len(permutation), config.batch_size):
             batch = train_tensor[permutation[start:start + config.batch_size]]
@@ -271,7 +296,7 @@ def train_sae(
     model.load_state_dict(best_state)
     model.freeze()
     return model, {
-        "normalizer": normalizer, "history": history,
+        "normalizer": normalizer, "history": history, "device": str(target),
         "selected_epoch": best_epoch, "selected_on": "validation reconstruction MSE",
         "best_validation_mse": best_validation,
         "labels_used_in_training": False,
@@ -290,7 +315,7 @@ def sae_diagnostics(
     *, partition: str = "unspecified",
 ) -> dict[str, Any]:
     """Reconstruction, variance explained, sparsity, and dead-feature reporting."""
-    tensor = torch.from_numpy(apply_input_normalizer(x, normalizer))
+    tensor = torch.from_numpy(apply_input_normalizer(x, normalizer)).to(_module_device(model))
     reconstruction, code, _ = model.forward(tensor)
     residual = (tensor - reconstruction).pow(2).sum().item()
     variance = (tensor - tensor.mean(dim=0, keepdim=True)).pow(2).sum().item()
@@ -306,6 +331,7 @@ def sae_diagnostics(
         "fraction_variance_explained": float(1.0 - residual / variance) if variance > 0 else None,
         "l0_mean": float(active.float().sum(dim=-1).mean().item()),
         "l0_std": float(active.float().sum(dim=-1).std(unbiased=False).item()),
+        "device": str(_module_device(model)),
         "dead_feature_fraction": float((frequency <= model.config.dead_feature_threshold).mean()),
         "n_dead_features": int((frequency <= model.config.dead_feature_threshold).sum()),
         "activation_frequency": {
@@ -320,7 +346,7 @@ def sae_diagnostics(
 def feature_activations(
     model: SparseAutoencoder, x: np.ndarray, normalizer: dict[str, Any] | None,
 ) -> np.ndarray:
-    tensor = torch.from_numpy(apply_input_normalizer(x, normalizer))
+    tensor = torch.from_numpy(apply_input_normalizer(x, normalizer)).to(_module_device(model))
     _, code = model.encode(tensor)
     return code.cpu().numpy()
 
@@ -451,6 +477,7 @@ def _jsonable(value: Any) -> Any:
 
 def seed_stability(
     x_train: np.ndarray, x_validation: np.ndarray, config: SAEConfig, seeds: Sequence[int],
+    *, device: str | torch.device = "cpu",
 ) -> dict[str, Any]:
     """How reproducible is the dictionary across training seeds?
 
@@ -463,7 +490,8 @@ def seed_stability(
         raise ResearchIntegrityError("Seed stability needs at least two seeds")
     dictionaries = []
     for seed in seeds:
-        model, _ = train_sae(x_train, x_validation, SAEConfig(**{**config.to_dict(), "seed": int(seed)}))
+        model, _ = train_sae(x_train, x_validation,
+                             SAEConfig(**{**config.to_dict(), "seed": int(seed)}), device=device)
         dictionaries.append(model.decoder_directions())
     pairs: list[dict[str, Any]] = []
     for i in range(len(dictionaries)):
@@ -488,6 +516,7 @@ def run_sae_experiment(
     top_n_features: int = 5, stability_seeds: Sequence[int] = (),
     metadata_columns: Iterable[str] = (),
     output_dir: str | Path | None = None,
+    device: str | torch.device = "cpu",
 ) -> dict[str, Any]:
     """Unsupervised train, freeze, rank on selection data, evaluate once on test."""
     index = {sid: i for i, sid in enumerate(df.sample_id)}
@@ -503,7 +532,7 @@ def run_sae_experiment(
     x_test = activations[test_pos, layer]
     labels = df.label.to_numpy(int)
 
-    model, training = train_sae(x_train, x_validation, sae_config)
+    model, training = train_sae(x_train, x_validation, sae_config, device=device)
     normalizer = training["normalizer"]
     fingerprint = model.parameter_fingerprint()
 
@@ -545,14 +574,18 @@ def run_sae_experiment(
         "sae_unchanged_after_evaluation": model.parameter_fingerprint() == fingerprint,
     }
     if stability_seeds:
-        result["seed_stability"] = seed_stability(x_train, x_validation, sae_config, stability_seeds)
+        result["seed_stability"] = seed_stability(x_train, x_validation, sae_config,
+                                                 stability_seeds, device=device)
 
     if output_dir is not None:
         root = Path(output_dir)
         root.mkdir(parents=True, exist_ok=True)
-        torch.save({"state_dict": model.state_dict(), "input_dim": model.input_dim,
+        # CPU state dict: a CUDA-tensor checkpoint cannot be loaded on a CPU box.
+        torch.save({"state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()},
+                    "input_dim": model.input_dim,
                     "sae_config": sae_config.to_dict(), "normalizer": normalizer,
-                    "layer": int(layer), "unsupervised": True}, root / "sae_model.pt")
+                    "layer": int(layer), "unsupervised": True,
+                    "trained_on_device": str(_module_device(model))}, root / "sae_model.pt")
         ranking.to_csv(root / "sae_feature_ranking.csv", index=False)
         (root / "sae_feature_examples.json").write_text(
             json.dumps(examples, indent=2) + "\n", encoding="utf-8")
@@ -566,6 +599,7 @@ def run_sae_experiment(
 
 __all__ = [
     "ACTIVATIONS", "SAEConfig", "SparseAutoencoder", "apply_input_normalizer",
+    "resolve_device",
     "evaluate_features_on_test", "feature_activations", "fit_input_normalizer",
     "rank_features", "run_sae_experiment", "sae_diagnostics", "seed_stability",
     "top_activating_examples", "train_sae",

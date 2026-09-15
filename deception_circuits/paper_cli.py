@@ -21,7 +21,9 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="deception-paper", description=__doc__)
     parser.add_argument("command", choices=COMMANDS)
     parser.add_argument("--config", required=True)
-    parser.add_argument("--device", default="cpu", help="collect-activations: torch device")
+    parser.add_argument("--device", default="cpu",
+                        help="torch device for collect-activations, train-sae, "
+                             "and run-interventions (e.g. cuda)")
     parser.add_argument(
         "--confirm-model-load", action="store_true",
         help="collect-activations / run-interventions: required acknowledgement that this loads "
@@ -182,11 +184,13 @@ def main() -> None:
             activations, df, split_manifest, config, sae_config, layer=layer,
             top_n_features=config.sae_top_n_features,
             stability_seeds=[int(s) for s in config.sae_stability_seeds],
-            metadata_columns=config.nuisance_columns, output_dir=out)
+            metadata_columns=config.nuisance_columns, output_dir=out,
+            device=args.device)
         (out / "sae_results.json").write_text(json.dumps(result, indent=2) + "\n")
         print(out / "sae_results.json")
         test = result["diagnostics"]["test"]
-        print(f"  layer={result['layer']} expansion={result['expansion_factor']:.2f} "
+        print(f"  device={result['training'].get('device')} "
+              f"layer={result['layer']} expansion={result['expansion_factor']:.2f} "
               f"EV={test['fraction_variance_explained']:.3f} L0={test['l0_mean']:.2f} "
               f"dead={test['dead_feature_fraction']:.3f}")
         print(f"  selected features (ranked on train+validation): {result['selected_features']}")

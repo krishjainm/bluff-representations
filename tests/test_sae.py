@@ -395,3 +395,52 @@ def test_experiment_includes_seed_stability_when_requested(tmp_path):
                                 _config(epochs=5), layer=0, top_n_features=2,
                                 stability_seeds=[0, 1], output_dir=tmp_path)
     assert result["seed_stability"]["n_pairs"] == 1
+
+
+# --- device handling ------------------------------------------------------------
+
+def test_cuda_request_without_cuda_is_refused_not_downgraded():
+    """A silent fall back to CPU would turn minutes into hours and look like
+    nothing more than a slow run."""
+    from deception_circuits.paper_sae import resolve_device
+
+    if torch.cuda.is_available():
+        assert resolve_device("cuda").type == "cuda"
+    else:
+        with pytest.raises(ResearchIntegrityError, match="no CUDA device"):
+            resolve_device("cuda")
+
+
+def test_cpu_device_is_resolved_and_recorded():
+    from deception_circuits.paper_sae import resolve_device
+
+    assert resolve_device("cpu").type == "cpu"
+    x, _ = _sparse_data(n=400)
+    _, training = train_sae(x[:256], x[256:320], _config(epochs=3, batch_size=64), device="cpu")
+    assert training["device"] == "cpu"
+
+
+def test_diagnostics_follow_the_model_device_and_return_cpu_numbers():
+    x, _ = _sparse_data(n=400)
+    model, training = train_sae(x[:256], x[256:320], _config(epochs=3, batch_size=64))
+    diagnostics = sae_diagnostics(model, x[320:], training["normalizer"], partition="test")
+    assert diagnostics["device"] == "cpu"
+    # Every reported value must be a plain Python number, not a tensor.
+    assert isinstance(diagnostics["reconstruction_mse"], float)
+    codes = feature_activations(model, x[320:], training["normalizer"])
+    assert isinstance(codes, np.ndarray)
+
+
+def test_saved_checkpoint_is_portable_cpu_tensors(tmp_path):
+    """A CUDA-tensor checkpoint cannot be loaded on a CPU box."""
+    df, activations, manifest = _labelled_fixture()
+    run_sae_experiment(activations, df, manifest, _paper_config(), _config(epochs=5),
+                       layer=0, top_n_features=2, output_dir=tmp_path)
+    saved = torch.load(tmp_path / "sae_model.pt", weights_only=False)
+    assert all(v.device.type == "cpu" for v in saved["state_dict"].values())
+    assert saved["trained_on_device"] == "cpu"
+
+
+def test_device_is_not_part_of_the_scientific_fingerprint():
+    """Device is an execution detail; it must not masquerade as a config choice."""
+    assert "device" not in SAEConfig(n_features=32, activation="topk", k=2).to_dict()
