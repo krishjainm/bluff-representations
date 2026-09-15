@@ -13,7 +13,8 @@ from .paper import (PaperConfig, audit_notes, audit_run, load_activations, make_
 from .paper_extraction import ExtractionSpec, run_extraction
 
 COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes",
-            "analyze-confounds", "train-sae", "run-interventions", "make-figures", "audit")
+            "run-baselines", "analyze-confounds", "train-sae", "run-interventions",
+            "make-figures", "audit")
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -116,6 +117,34 @@ def main() -> None:
         print(out / "confound_results.json")
         if unavailable:
             print("unavailable without more metadata: " + ", ".join(unavailable))
+        return
+
+    if args.command == "run-baselines":
+        # Deliberately model-free: this is the bar the hidden-state probe has to
+        # clear, and it costs nothing, so it should be run before any GPU time.
+        from .paper import run_baselines
+        from .paper_confounds import describe_metadata_availability
+
+        path = _manifest_path(config, out)
+        if not path.is_file():
+            raise FileNotFoundError("Create a split manifest before running baselines")
+        split_manifest = json.loads(path.read_text())
+        result = {
+            "note": "no activations and no model are involved in any number here",
+            "n_train": len(split_manifest["train"]), "n_test": len(split_manifest["test"]),
+            "partition_summary": split_manifest.get("partition_summary"),
+            "metadata_availability": describe_metadata_availability(df, config.nuisance_columns),
+            "baselines": run_baselines(df, split_manifest, config),
+        }
+        (out / "baseline_results.json").write_text(json.dumps(result, indent=2) + "\n")
+        print(out / "baseline_results.json")
+        for name, entry in result["baselines"].items():
+            if isinstance(entry, dict) and "auroc" in entry:
+                print(f"  {name:28s} AUROC {entry['auroc']:.4f}  PR-AUC {entry['pr_auc']:.4f}")
+            elif isinstance(entry, dict):
+                print(f"  {name:28s} {entry.get('status', entry)}")
+            else:
+                print(f"  {name:28s} {entry:.4f}")
         return
 
     if args.command == "make-figures":

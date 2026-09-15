@@ -52,6 +52,7 @@ deception-paper validate-data --config my_run.yaml
 deception-paper make-splits --config my_run.yaml
 # Loads subject-model weights and runs real forward passes; requires the flag.
 deception-paper collect-activations --config my_run.yaml --confirm-model-load
+deception-paper run-baselines --config my_run.yaml     # no model needed; run this first
 deception-paper train-probes --config my_run.yaml
 deception-paper analyze-confounds --config my_run.yaml
 deception-paper train-sae --config my_run.yaml
@@ -614,3 +615,82 @@ PASSes with notes.
 **Still true:** no real dataset run, no real activations, no API call, no probe or
 SAE trained on the real poker data, no paper metric. Every number in the smoke
 artifacts is stub output.
+
+### 2026-09-15 — first real numbers: the model-free baselines
+
+**These are real results on the real dataset.** No model, no activations, no API
+call. Fitted on the training partition and scored once on the frozen test
+partition, with group-safe label-stratified splits.
+
+Dataset: `data/derived/poker_bluff_judge_question_v1.csv`, 44,631 rows, 44,311
+groups, adapted from `normalized_poker_gpt4o.fixed.csv`. Splits:
+
+| partition | rows | groups | positive rate |
+|---|---|---|---|
+| train | 31,241 | 31,017 | 0.1678 |
+| validation | 4,463 | 4,431 | 0.1678 |
+| test | 8,927 | 8,863 | 0.1678 |
+
+Stratification is exact: the positive rate is 0.1678 in all three partitions and
+matches the corpus rate, with no group crossing a partition boundary.
+
+| baseline | AUROC | PR-AUC |
+|---|---|---|
+| majority class | — | accuracy 0.8322 |
+| prompt text only (TF-IDF 1-2gram) | 0.7817 | 0.3762 |
+| **nuisance metadata only** | **0.9204** | **0.6166** |
+| response text (leakage diagnostic) | **1.0000** | **1.0000** |
+
+Two findings.
+
+**The response-text diagnostic returns exactly 1.0000/1.0000.** That is the
+`response`-is-the-label property confirmed on the real data by measurement rather
+than inspection. Any pipeline that lets response tokens into the probe scores
+perfectly and means nothing. The pre-decision extraction guard is what stands
+between this dataset and a meaningless result.
+
+**The nuisance-only baseline is AUROC 0.9204 / PR-AUC 0.6166 on held-out test
+data**, using only mechanically parsed game state (action, street, position,
+made-hand category, board texture, board paired, bet faced). The earlier
+in-sample estimate was 0.9208, so it held up out of sample almost exactly. Full
+metrics: accuracy 0.8512, balanced accuracy 0.8768, F1 0.6737, MCC 0.6218,
+ECE 0.1305, confusion {tn 6228, fp 1201, fn 127, tp 1371}.
+
+**This is now the bar.** A hidden-state probe on this dataset has to clear
+AUROC 0.9204 / PR-AUC 0.6166 to be saying anything that mechanical hand
+evaluation does not already say. That number must appear next to any probe
+number in the paper.
+
+Note also that the prompt-only text baseline (0.7817) is *worse* than the
+structured parse (0.9204), which makes sense: TF-IDF over card names cannot
+compute made-hand strength, whereas the parser does.
+
+One thing the text baselines cannot measure: the "Is this a bluff?" question is
+byte-identical in every row, so it contributes no discriminative signal to any
+text model. Its effect is entirely on the subject model's internal computation,
+which means the `judge_question` vs `neutral_state` comparison is only
+informative once activations exist.
+
+Metadata coverage is 1.0000 for every parsed column. All confound controls are
+available except `bet_size_matched` (needs pot size, not reconstructed) and
+`equity_matched` (needs true equity, not derivable without a solver).
+
+Added `deception-paper run-baselines`: model-free, cheap, and the bar the probe
+must clear, so it belongs before any GPU time rather than after.
+
+**Extraction is not yet run.** It needs a subject model, which needs
+authorization. Measured requirements for this dataset: 44,631 forward passes,
+~9.0M prompt tokens of prefill (mean 201 estimated tokens per prompt, max 230).
+Activation storage, float32, one vector per sample per layer:
+
+| model | layers | hidden | all layers | 8-layer subset |
+|---|---|---|---|---|
+| gpt2 (124M) | 12 | 768 | 1.6 GB | 1.1 GB |
+| Qwen2.5-1.5B | 28 | 1536 | 7.7 GB | 2.2 GB |
+| Llama-3.2-3B | 28 | 3072 | 15.4 GB | 4.4 GB |
+| Llama-3.1-8B / Mistral-7B | 32 | 4096 | 23.4 GB | 5.8 GB |
+
+This machine: 16 GB unified memory, MPS available, no CUDA, 541 GB free disk, no
+Hugging Face token on disk. **The original paper's Llama-3.1-8B is not viable
+here** — fp16 weights alone are ~16 GB — and it is gated, so it would also need a
+login. A replication at 8B needs a rented GPU.
