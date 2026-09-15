@@ -95,10 +95,19 @@ class ExtractionSpec:
         if not str(self.decision_boundary_marker).strip():
             raise ResearchIntegrityError("decision_boundary_marker must be a non-empty string")
         if self.activation_mode in ("prompt_end", "decision_token_prelogit"):
-            if not self.prompt_template.rstrip().endswith(self.decision_boundary_marker):
+            # The real requirement is that the *rendered* prompt ends at the
+            # boundary, which is checked per row in render_extraction_prompt.
+            # Here we can only check a literal template suffix: if the template
+            # appends its own text after the statement, that text must end at the
+            # boundary. A template ending in {statement} is allowed, because the
+            # boundary then comes from the data (e.g. a prompt whose final line is
+            # already the stated action) and only the render check can verify it.
+            suffix = self.prompt_template.rsplit("}", 1)[-1]
+            if suffix.strip() and not suffix.rstrip().endswith(self.decision_boundary_marker):
                 raise ResearchIntegrityError(
-                    "prompt_end/decision_token_prelogit templates must end at the explicit "
-                    f"decision boundary {self.decision_boundary_marker!r}"
+                    "prompt_end/decision_token_prelogit templates that append text after the "
+                    f"statement must end at the explicit decision boundary "
+                    f"{self.decision_boundary_marker!r}; got suffix {suffix!r}"
                 )
         if self.activation_mode in DIAGNOSTIC_MODES:
             if not self.allow_response_leakage:
@@ -284,6 +293,16 @@ def render_extraction_prompt(
         # Both read the final prompt token: the hidden state that the model would
         # use to emit its first action token.  They differ only in intent, so the
         # mode is kept in the manifest for provenance.
+        #
+        # Per-row boundary check: this is the guarantee that matters, and it is
+        # stronger than inspecting the template, because it also catches a row
+        # whose own text does not end where the spec says the decision is.
+        if not prompt.rstrip().endswith(spec.decision_boundary_marker):
+            raise ResearchIntegrityError(
+                f"Rendered pre-decision prompt does not end at the declared decision boundary "
+                f"{spec.decision_boundary_marker!r}; it ends with "
+                f"{prompt.rstrip()[-40:]!r}. The read position would not be the decision point."
+            )
         if truncated:
             raise ResearchIntegrityError(
                 f"Pre-decision prompt has {len(full_tokens)} tokens but max_sequence_length is "

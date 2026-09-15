@@ -694,3 +694,62 @@ This machine: 16 GB unified memory, MPS available, no CUDA, 541 GB free disk, no
 Hugging Face token on disk. **The original paper's Llama-3.1-8B is not viable
 here** — fp16 weights alone are ~16 GB — and it is gated, so it would also need a
 login. A replication at 8B needs a rented GPU.
+
+### 2026-09-15 — GPU run prepared; no download performed
+
+Decision taken: **do not download a subject model on this machine.** The 8B
+replication goes to rented compute. Both prompt variants will be extracted.
+
+`docs/GPU_RUNBOOK.md` is the turnkey sequence. Two configs are committed and both
+parse with distinct extraction fingerprints (so they cannot be confused for one
+another):
+
+- `configs/real_llama31_8b_judge_question.yaml` — the primary run, all nine
+  stages including the causal suite.
+- `configs/real_llama31_8b_neutral_state.yaml` — the instruction-confound
+  comparison, **causal stage deliberately disabled**.
+
+Why the causal stage is off for the neutral variant: the neutral prompt asks the
+model nothing, so there is no forced choice to measure and hence no behavioural
+endpoint independent of the probe. Running it would have nothing to score. The
+variant exists to answer one question — how much of the probe's performance
+survives when the prompt does not name "bluff" — which is a probe comparison.
+
+**A real design limitation surfaced while writing those configs and was fixed.**
+`decision_boundary_marker` validated the *prompt template*, but the neutral
+variant's boundary lives in the *data*: its statements already end with "The
+player decided to: Raise." and the template appends nothing. Template validation
+therefore rejected a legitimate config. The boundary is now enforced on the
+**rendered prompt, per row**, which is strictly stronger — it also catches a row
+whose own text does not end where the spec claims the decision is. Template
+validation is retained for the case where the template appends a literal suffix.
+
+Read positions verified on the real data:
+
+| variant | marker | prompt ends with | read position |
+|---|---|---|---|
+| `judge_question` | `Answer:` | `…Reply with only 'Yes' or 'No'.\nAnswer:` | final token, ~165 in |
+| `neutral_state` | `Raise.` | `…The player decided to: Raise.` | final token, ~154 in |
+
+Both were checked to be **byte-identical under a label flip**, so neither prompt
+can encode the answer. Note that a substring test for the response value is
+useless on this dataset: every prompt's instruction contains both `'Yes'` and
+`'No'`. The meaningful check is label-independence, and it passes.
+
+Baselines for the neutral variant (model-free, frozen test partition):
+prompt-text AUROC 0.7825 / PR-AUC 0.3779, nuisance-only 0.9204 / 0.6166,
+response-text 1.0000 / 1.0000 — prompt-text is within 0.001 of the judge variant
+because the question is byte-identical in every row and so carries no
+discriminative text signal. That confirms the instruction confound is invisible
+to any text baseline and can only be measured in the model's hidden states, which
+is exactly what the two-variant extraction is for.
+
+Also added: `extraction` now refuses a rendered prompt that does not end at the
+declared boundary; SAE configs sized for 4096-dim residuals (32,768 features,
+TopK k=64); causal grid `[0.5, 1, 2, 4, 8]` with `causal_eval_size: 1000`.
+
+Tests: **208 passed**.
+
+**Nothing compute-heavy was run.** No model downloaded, no weights loaded, no API
+call, no GPU job. The only real computation performed to date is the model-free
+baselines and the split construction, both on CPU in under two minutes.

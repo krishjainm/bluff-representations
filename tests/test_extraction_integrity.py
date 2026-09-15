@@ -73,9 +73,28 @@ def test_pre_decision_spec_rejects_leakage_optin():
         _spec(activation_mode="prompt_end", allow_response_leakage=True)
 
 
-def test_prompt_end_requires_explicit_action_boundary():
-    with pytest.raises(ResearchIntegrityError, match="Action:"):
-        _spec(prompt_template="Question: {statement}")
+def test_prompt_end_rejects_a_template_suffix_that_misses_the_boundary():
+    with pytest.raises(ResearchIntegrityError, match="must end at the explicit decision boundary"):
+        _spec(prompt_template="{statement}\nWhat now?")
+
+
+def test_prompt_end_enforces_the_boundary_on_the_rendered_prompt(tmp_path):
+    """A suffix-less template is allowed, but the rendered row must still end
+    at the boundary -- otherwise the read position is not the decision point."""
+    df = pd.read_csv(_dataset(tmp_path, n_groups=1))
+    spec = _spec(prompt_template="Question: {statement}")
+    with pytest.raises(ResearchIntegrityError, match="does not end at the declared decision boundary"):
+        render_extraction_prompt(df.iloc[0], spec, StubProvider())
+
+
+def test_boundary_can_come_from_the_data_rather_than_the_template(tmp_path):
+    """A prompt whose own final line is the decision needs no appended marker."""
+    df = pd.DataFrame([{"sample_id": "a", "statement": "state\nThe player decided to: Raise.",
+                        "response": "x", "label": 1}])
+    spec = _spec(prompt_template="{statement}", decision_boundary_marker="Raise.")
+    rendering = render_extraction_prompt(df.iloc[0], spec, StubProvider())
+    assert rendering.text.endswith("Raise.")
+    assert rendering.token_index == rendering.n_tokens - 1
 
 
 def test_response_token_mode_is_opt_in_only():

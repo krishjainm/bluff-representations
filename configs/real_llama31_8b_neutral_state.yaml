@@ -1,0 +1,80 @@
+# Real conference run: Llama-3.1-8B on the adapted normalized_poker_gpt4o dataset.
+# Prompt variant: neutral_state
+#
+# Run this on a rented GPU. Requirements measured on the real data:
+#   44,631 forward passes, ~9.0M tokens of prefill
+#   >= 20 GB VRAM for fp16 weights + activations
+#   23.4 GB activation storage for this variant (32 layers x 4096, float32)
+# See docs/GPU_RUNBOOK.md for the exact command sequence.
+#
+# PIN THE REVISION before running. An unpinned model id is not reproducible, and
+# the extraction manifest records whatever you put here.
+experiment_name: poker_bluff_neutral_state_llama31_8b
+dataset_path: data/derived/poker_bluff_neutral_state_v1.csv
+activation_dir: data/activations/poker_bluff_neutral_state_llama31_8b_prompt_end
+output_dir: results/poker_bluff_neutral_state_llama31_8b
+seed: 2026
+
+# --- splits: group-safe and label-stratified; verified on this dataset to give
+# --- a 0.1678 positive rate in all three partitions.
+group_column: split_group_id
+split_strategy: grouped_stratified
+stratify_columns: [label]
+test_fraction: 0.20
+validation_fraction: 0.10
+
+# --- probe
+probe_c: 1.0
+n_seeds: 5
+bootstrap_resamples: 1000
+learning_curve_sizes: [500, 2000, 8000, 20000, 31000]
+learning_curve_subsamples: 5
+
+# --- extraction
+# Instruct rather than base: the prompt issues an explicit output-format
+# instruction, so the base model is a different experiment. Record whichever you use.
+subject_model: meta-llama/Llama-3.1-8B-Instruct
+model_revision: REPLACE_WITH_PINNED_COMMIT_SHA
+tokenizer_revision: REPLACE_WITH_PINNED_COMMIT_SHA
+activation_site: residual_stream
+activation_mode: prompt_end
+# All layers: layerwise probing is the primary experiment, so a subset would
+# defeat it. Cut this to e.g. [8, 12, 16, 20, 24, 28, 31] if storage is tight.
+activation_layers: all
+# Longest observed prompt is ~230 estimated tokens; 512 leaves headroom without
+# risking a truncation that would move the decision boundary.
+max_sequence_length: 512
+prompt_template_id: poker_bluff_judgement_neutral_state_v1
+# The neutral variant asks nothing, so there is no answer position. The prompt
+# ends at the stated action and that final token is the read position.
+decision_boundary_marker: "Raise."
+
+probe_type: logistic_regression
+
+# --- confound controls. equity_matched and bet_size_matched will report
+# --- not_run: true equity needs a solver and pot size is not reconstructed.
+nuisance_columns: [action, street, position, made_hand, board_texture, board_paired, bet_size]
+
+# --- SAE: 4096 hidden x 8 = 32,768 features. Drop to 16,384 if memory is tight.
+sae_config:
+  n_features: 32768
+  activation: topk
+  k: 64
+  epochs: 60
+  batch_size: 1024
+  learning_rate: 0.0003
+  seed: 0
+sae_top_n_features: 10
+sae_stability_seeds: [0, 1, 2]
+
+# --- causal intervention: DELIBERATELY DISABLED for this variant.
+# The neutral prompt asks the model nothing, so there is no forced choice to
+# measure and no behavioural endpoint independent of the probe. Running the
+# causal suite here would have nothing to score. This variant exists to answer
+# one question -- how much of the probe's performance survives when the prompt
+# does not name "bluff" -- and that is a probe comparison, not a causal one.
+# Empty strengths keep the stage unrun and keep the audit from demanding it.
+steering_direction_source: probe_train_partition
+intervention_strengths: []
+endpoint_options: []
+endpoint_positive_option: null
