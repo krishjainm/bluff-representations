@@ -423,7 +423,9 @@ def run_baselines(df: pd.DataFrame, manifest: dict[str, Any], config: PaperConfi
     test = df.set_index("sample_id").loc[manifest["test"]]
     y_train, y_test = train.label.to_numpy(int), test.label.to_numpy(int)
     result: dict[str, Any] = {"majority_class_accuracy": float(max(np.mean(y_test == 0), np.mean(y_test == 1)))}
+    print("[baselines] fitting prompt-text tf-idf", flush=True)
     result["prompt_text"] = _text_baseline(train.statement, y_train, test.statement, y_test, config.seed)
+    print("[baselines] fitting response-text diagnostic tf-idf", flush=True)
     # This is a deliberately diagnostic baseline, never a pre-decision claim.
     result["response_text_diagnostic"] = _text_baseline(train.response, y_train, test.response, y_test, config.seed)
     columns = [c for c in config.nuisance_columns if c in df.columns]
@@ -453,7 +455,11 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
     group_col = manifest.get("group_column", "base_item_id")
     test_groups = df.iloc[[index[s] for s in manifest["test"]]][group_col].to_numpy()
     runs = []
-    for seed in range(config.seed, config.seed + config.n_seeds):
+    n_layers = activations.shape[1]
+    print(f"[probe] {config.n_seeds} seeds x {n_layers} layers on "
+          f"{len(ytr)} train / {len(yva)} val / {len(yte)} test rows", flush=True)
+    for index, seed in enumerate(range(config.seed, config.seed + config.n_seeds), start=1):
+        started = datetime.now(timezone.utc)
         selected, val_scores, model = _select_layer_on_validation(xtr, ytr, xva, yva, config, seed)
         test_prob = model.predict_proba(xte[:, selected])[:, 1]
         runs.append({"seed": seed, "selected_layer": selected, "validation_auroc": val_scores[selected],
@@ -461,6 +467,10 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
                      "test": _metrics(yte, test_prob),
                      "test_auroc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="auroc"),
                      "test_pr_auc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="pr_auc")})
+        elapsed = (datetime.now(timezone.utc) - started).total_seconds()
+        print(f"[probe] seed {index}/{config.n_seeds} done in {elapsed:.0f}s: "
+              f"layer {selected}, val AUROC {val_scores[selected]:.4f}, "
+              f"test AUROC {runs[-1]['test']['auroc']:.4f}", flush=True)
     result = {"selection_partition": "validation", "test_partition_used_for_selection": False,
               "n_train": len(ytr), "n_validation": len(yva), "n_test": len(yte), "runs": runs,
               "test_auroc_mean": float(np.mean([r["test"]["auroc"] for r in runs])),
@@ -552,7 +562,11 @@ def run_learning_curve(
     xte, yte = activations[test_pos], labels[test_pos]
 
     points: list[dict[str, Any]] = []
-    for size in sorted({int(s) for s in config.learning_curve_sizes}):
+    sizes = sorted({int(s) for s in config.learning_curve_sizes})
+    print(f"[curve] {len(sizes)} sizes x {config.learning_curve_subsamples} draws"
+          + (f" at fixed layer {layer}" if layer is not None else " re-selecting every layer"),
+          flush=True)
+    for size in sizes:
         if size < 2 or size > len(unique_groups):
             points.append({"n_train_groups": size, "status": "not_run",
                            "reason": f"requested {size} training groups but {len(unique_groups)} are available"})
@@ -592,6 +606,8 @@ def run_learning_curve(
                            "reason": "no subsample of this size contained both label classes"})
             continue
         aurocs = np.asarray([r["test_auroc"] for r in replicates])
+        print(f"[curve] {size} groups: {len(replicates)} draws, "
+              f"test AUROC {aurocs.mean():.4f}", flush=True)
         points.append({
             "n_train_groups": size, "status": "ok", "n_replicates": len(replicates),
             "test_auroc_mean": float(aurocs.mean()),
