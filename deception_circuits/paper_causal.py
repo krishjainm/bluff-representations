@@ -415,8 +415,18 @@ def run_causal_suite(
     n_resamples: int = 1000,
     group_column: str = "split_group_id",
     probe_direction_name: str = "probe",
+    min_baseline_choice_mass: float = 0.5,
+    probe_prompts: int = 16,
 ) -> dict[str, Any]:
     """Paired held-out causal evaluation across every condition and strength.
+
+    Before doing the full sweep the suite checks, on a small probe sample, that
+    the model actually puts its probability mass on ``endpoint.options``. If the
+    options are tokenised differently from what the model would emit -- the
+    classic case being ``"Yes"`` versus ``" Yes"`` after a ``"Answer:"`` prompt --
+    then every number produced downstream is noise from an unused corner of the
+    distribution. That check is worth a few seconds against a sweep that can run
+    for hours.
 
     ``prompts`` must be held-out rows carrying ``sample_id`` and ``statement``.
     Every condition is evaluated on the *same* prompts so comparisons are paired,
@@ -437,6 +447,22 @@ def run_causal_suite(
 
     statements = prompts["statement"].astype(str).tolist()
     sample_ids = prompts["sample_id"].astype(str).tolist()
+
+    # Fail fast if the endpoint is not reading the tokens the model emits.
+    sample = statements[:max(1, min(probe_prompts, len(statements)))]
+    masses = [endpoint.score(runner.choice_logprobs(p, endpoint.options,
+                                                    intervention=Intervention()))["valid_choice_mass"]
+              for p in sample]
+    observed = float(np.mean(masses))
+    if observed < min_baseline_choice_mass:
+        raise ResearchIntegrityError(
+            f"The model places only {observed:.4f} of its probability mass on "
+            f"{list(endpoint.options)} across {len(sample)} unintervened prompts (floor "
+            f"{min_baseline_choice_mass}). The endpoint is not reading the tokens the model "
+            "actually emits, so every effect measured against it would be noise from an unused "
+            "corner of the distribution. Check option tokenisation -- a leading space matters, "
+            "e.g. ' Yes' rather than 'Yes' after a prompt ending in 'Answer:'."
+        )
     groups = (prompts[group_column].astype(str).tolist() if group_column in prompts.columns
               else list(sample_ids))
     # Patch sources come from a deterministic rotation of the same held-out set,
@@ -507,6 +533,8 @@ def run_causal_suite(
         "primary_endpoint_is_probe_derived": False,
         "probe_score_role": "diagnostic only; never the primary endpoint",
         "decoding": "deterministic single forward pass (no sampling) for the forced-choice endpoint",
+        "baseline_choice_mass_check": {"observed": observed, "floor": min_baseline_choice_mass,
+                                       "n_prompts_checked": len(sample)},
         "layer": int(layer),
         "n_prompts": int(len(statements)),
         "n_groups": int(len(set(groups))),

@@ -78,6 +78,6 @@ intervention_site: block
 intervention_token_policy: prompt_end
 intervention_strengths: [0.5, 1.0, 2.0, 4.0, 8.0]
 causal_eval_size: 1000
-endpoint_options: ["Yes", "No"]
-endpoint_positive_option: "Yes"
+endpoint_options: [" Yes", " No"]   # leading space: the model emits " Yes"/" No" after "Answer:"
+endpoint_positive_option: " Yes"
 causal_nuisance_column: made_hand

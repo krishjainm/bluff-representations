@@ -453,3 +453,60 @@ def test_generation_quality_flags_refusal_and_repetition():
     repeated = score_generation_quality("bet bet bet bet")
     assert repeated["repetition_diversity"] < 0.5
     assert score_generation_quality("   ")["empty"] is True
+
+
+# --- endpoint-tokenisation guard ------------------------------------------------
+
+class _WrongTokenRunner(StubInterventionRunner):
+    """Model that answers with space-prefixed options, as real tokenizers do.
+
+    Reproduces the real failure: the configured options carry almost none of the
+    model's probability mass, so every measured effect is noise.
+    """
+
+    def choice_logprobs(self, prompt, options, *, intervention):
+        import numpy as np
+
+        # The model's mass sits on the space-prefixed tokens it actually emits;
+        # the requested options are a near-empty corner of the distribution.
+        super().choice_logprobs(prompt, options, intervention=intervention)
+        return {o: float(np.log(1e-4)) for o in options}
+
+
+def test_suite_refuses_an_endpoint_the_model_does_not_answer_with():
+    """A 3-hour sweep must not run while reading 2% of the distribution."""
+    df, activations, _ = _fixture(n_groups=10)
+    manifest = _manifest(df)
+    directions = build_direction_set(activations, df, manifest, _config(), layer=READOUT_LAYER)
+    held_out = df[df.sample_id.isin(manifest["test"])]
+    with pytest.raises(ResearchIntegrityError, match="probability mass"):
+        run_causal_suite(_WrongTokenRunner(dim=DIM, n_layers=N_LAYERS, readout_layer=READOUT_LAYER),
+                         held_out, directions, ENDPOINT, layer=READOUT_LAYER,
+                         strengths=[1.0], n_resamples=20)
+
+
+def test_guard_error_names_the_leading_space_cause():
+    df, activations, _ = _fixture(n_groups=10)
+    manifest = _manifest(df)
+    directions = build_direction_set(activations, df, manifest, _config(), layer=READOUT_LAYER)
+    held_out = df[df.sample_id.isin(manifest["test"])]
+    try:
+        run_causal_suite(_WrongTokenRunner(dim=DIM, n_layers=N_LAYERS, readout_layer=READOUT_LAYER),
+                         held_out, directions, ENDPOINT, layer=READOUT_LAYER, strengths=[1.0])
+    except ResearchIntegrityError as exc:
+        assert "leading space" in str(exc)
+        assert "' Yes'" in str(exc)
+    else:
+        pytest.fail("expected the guard to fire")
+
+
+def test_guard_records_the_observed_mass_when_it_passes():
+    df, activations, runner = _fixture(n_groups=12)
+    manifest = _manifest(df)
+    directions = build_direction_set(activations, df, manifest, _config(), layer=READOUT_LAYER)
+    held_out = df[df.sample_id.isin(manifest["test"])]
+    result = run_causal_suite(runner, held_out, directions, ENDPOINT, layer=READOUT_LAYER,
+                              strengths=[1.0], seed=5, n_resamples=30)
+    check = result["baseline_choice_mass_check"]
+    assert check["observed"] >= check["floor"]
+    assert check["n_prompts_checked"] >= 1
