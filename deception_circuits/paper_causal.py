@@ -417,6 +417,7 @@ def run_causal_suite(
     probe_direction_name: str = "probe",
     min_baseline_choice_mass: float = 0.5,
     probe_prompts: int = 16,
+    prompt_template: str | None = None,
 ) -> dict[str, Any]:
     """Paired held-out causal evaluation across every condition and strength.
 
@@ -427,6 +428,13 @@ def run_causal_suite(
     then every number produced downstream is noise from an unused corner of the
     distribution. That check is worth a few seconds against a sweep that can run
     for hours.
+
+    ``prompt_template`` must be the same template the activations were extracted
+    with. The probe direction was fitted at the final token of that rendered
+    prompt, so intervening on a differently-rendered prompt applies the direction
+    at a position it was never learned for -- and, for an instruct model, changes
+    what the next token even is. Passing it is strongly preferred; omitting it
+    uses the raw statement and is only correct if extraction did too.
 
     ``prompts`` must be held-out rows carrying ``sample_id`` and ``statement``.
     Every condition is evaluated on the *same* prompts so comparisons are paired,
@@ -445,7 +453,13 @@ def run_causal_suite(
     if not any(c.kind == "none" for c in conditions):
         raise ResearchIntegrityError("A baseline condition is required for paired comparison")
 
-    statements = prompts["statement"].astype(str).tolist()
+    raw_statements = prompts["statement"].astype(str).tolist()
+    if prompt_template is not None:
+        if "{statement}" not in prompt_template:
+            raise ResearchIntegrityError("prompt_template must contain {statement}")
+        statements = [prompt_template.format(statement=x) for x in raw_statements]
+    else:
+        statements = raw_statements
     sample_ids = prompts["sample_id"].astype(str).tolist()
 
     # Fail fast if the endpoint is not reading the tokens the model emits.
@@ -535,6 +549,7 @@ def run_causal_suite(
         "decoding": "deterministic single forward pass (no sampling) for the forced-choice endpoint",
         "baseline_choice_mass_check": {"observed": observed, "floor": min_baseline_choice_mass,
                                        "n_prompts_checked": len(sample)},
+        "prompt_template": prompt_template,
         "layer": int(layer),
         "n_prompts": int(len(statements)),
         "n_groups": int(len(set(groups))),

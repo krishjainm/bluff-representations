@@ -510,3 +510,26 @@ def test_guard_records_the_observed_mass_when_it_passes():
     check = result["baseline_choice_mass_check"]
     assert check["observed"] >= check["floor"]
     assert check["n_prompts_checked"] >= 1
+
+
+def test_suite_renders_prompts_with_the_extraction_template():
+    """The direction is fitted at the final token of the rendered prompt, so the
+    intervention must see the same rendering."""
+    df, activations, runner = _fixture(n_groups=12)
+    manifest = _manifest(df)
+    directions = build_direction_set(activations, df, manifest, _config(), layer=READOUT_LAYER)
+    held_out = df[df.sample_id.isin(manifest["test"])]
+    result = run_causal_suite(runner, held_out, directions, ENDPOINT, layer=READOUT_LAYER,
+                              strengths=[1.0], seed=5, n_resamples=20,
+                              prompt_template="{statement}\nAnswer:")
+    assert result["prompt_template"] == "{statement}\nAnswer:"
+    # The runner must have been handed the rendered text, not the bare statement.
+    assert any(p.endswith("\nAnswer:") for p in {c["prompt"] for c in runner.calls})
+
+
+def test_bad_template_is_refused():
+    df, activations, runner = _fixture(n_groups=8)
+    directions = build_direction_set(activations, df, _manifest(df), _config(), layer=READOUT_LAYER)
+    with pytest.raises(ResearchIntegrityError, match=r"must contain \{statement\}"):
+        run_causal_suite(runner, df.head(4), directions, ENDPOINT, layer=READOUT_LAYER,
+                         strengths=[1.0], prompt_template="no placeholder")

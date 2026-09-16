@@ -248,13 +248,17 @@ def main() -> None:
         runner = TransformersInterventionRunner(
             config.subject_model, device=args.device,
             site=config.intervention_site or "block", revision=config.model_revision)
+        # Same template the activations were extracted with, so the intervention
+        # lands at the position the direction was fitted for.
+        spec = ExtractionSpec.from_paper_config(config)
         result = run_causal_suite(
             runner, held_out, directions,
             ForcedChoiceEndpoint(tuple(config.endpoint_options), config.endpoint_positive_option),
             layer=layer, strengths=list(config.intervention_strengths),
             conditions=conditions, seed=config.seed,
             n_resamples=config.bootstrap_resamples,
-            group_column=split_manifest.get("group_column", "base_item_id"))
+            group_column=split_manifest.get("group_column", "base_item_id"),
+            prompt_template=spec.prompt_template)
         # Per-row records go to CSV; the JSON keeps summaries only.
         records = result.pop("records")
         pd.DataFrame(records).to_csv(out / "intervention_records.csv", index=False)
