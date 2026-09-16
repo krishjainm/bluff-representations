@@ -468,7 +468,12 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
               "seed_summary": summarize_across_seeds(runs),
               "baselines": run_baselines(df, manifest, config)}
     if config.learning_curve_sizes:
-        result["learning_curve"] = run_learning_curve(df, activations, manifest, config)
+        # The curve reuses the layer the main loop selected on validation, so it
+        # costs one fit per draw rather than one per layer per draw.
+        modal = result["seed_summary"]["selected_layer"]["modal"]
+        result["learning_curve"] = run_learning_curve(
+            df, activations, manifest, config, layer=modal,
+            layer_source=f"modal validation-selected layer across {config.n_seeds} seeds")
     return result
 
 
@@ -517,6 +522,7 @@ def summarize_across_seeds(runs: list[dict[str, Any]]) -> dict[str, Any]:
 
 def run_learning_curve(
     df: pd.DataFrame, activations: np.ndarray, manifest: dict[str, Any], config: PaperConfig,
+    *, layer: int | None = None, layer_source: str = "unspecified",
 ) -> dict[str, Any]:
     """Sample-size curve using multiple *independent* training subsamples per size.
 
@@ -524,7 +530,14 @@ def run_learning_curve(
     subset with no uncertainty.  Each size here is evaluated over
     ``learning_curve_subsamples`` independent draws, subsampled at **group**
     level so a smaller training set is genuinely fewer poker hands rather than
-    fewer rows from the same hands.  Layer selection stays on validation.
+    fewer rows from the same hands.
+
+    ``layer`` controls the dominant cost. With a fixed layer the curve asks "how
+    much data does this probe need, holding the layer choice fixed", which is one
+    fit per draw. With ``layer=None`` it re-selects across every layer inside
+    each draw, which is ``n_layers`` times more fits and answers a noisier
+    question -- on a 32-layer model that is 800 fits instead of 25. The policy
+    and the layer's provenance are recorded either way.
     """
     index = {sid: i for i, sid in enumerate(df.sample_id)}
     group_col = manifest.get("group_column", "base_item_id")
@@ -552,8 +565,18 @@ def run_learning_curve(
             pos = np.array([index[s] for s in ids])
             if len(np.unique(labels[pos])) < 2:
                 continue
-            selected, val_scores, model = _select_layer_on_validation(
-                activations[pos], labels[pos], xva, yva, config, config.seed + replicate)
+            if layer is None:
+                selected, val_scores, model = _select_layer_on_validation(
+                    activations[pos], labels[pos], xva, yva, config, config.seed + replicate)
+            else:
+                # Fixed layer: one fit per draw instead of one per layer per draw.
+                selected = int(layer)
+                model = LogisticRegression(C=config.probe_c, class_weight="balanced",
+                                           max_iter=5000, random_state=config.seed + replicate)
+                model.fit(activations[pos][:, selected], labels[pos])
+                val_scores = [float("nan")] * activations.shape[1]
+                val_scores[selected] = _metrics(
+                    yva, model.predict_proba(xva[:, selected])[:, 1])["auroc"]
             replicates.append({
                 "replicate": replicate, "n_train_rows": int(len(pos)),
                 "n_train_groups": int(len(chosen)), "selected_layer": selected,
@@ -578,6 +601,8 @@ def run_learning_curve(
             "replicates": replicates,
         })
     return {"subsample_unit": "group", "requested_subsamples_per_size": config.learning_curve_subsamples,
+            "layer_policy": "fixed" if layer is not None else "reselected_per_subsample",
+            "layer": None if layer is None else int(layer), "layer_source": layer_source,
             "n_available_train_groups": int(len(unique_groups)), "points": points}
 
 

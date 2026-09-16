@@ -239,3 +239,58 @@ def test_learning_curve_is_reproducible(tmp_path):
     first = run_probe_experiment(df, activations, manifest, config)["learning_curve"]
     second = run_probe_experiment(df, activations, manifest, config)["learning_curve"]
     assert first == second
+
+
+# --- learning-curve layer policy ------------------------------------------------
+
+def test_curve_defaults_to_the_validation_selected_layer(tmp_path):
+    """Re-searching all layers per subsample is n_layers x more fits and asks a
+    noisier question, so the pipeline fixes the layer and records its source."""
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[6, 12],
+                     learning_curve_subsamples=2)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    curve = result["learning_curve"]
+    assert curve["layer_policy"] == "fixed"
+    assert curve["layer"] == result["seed_summary"]["selected_layer"]["modal"]
+    assert "modal validation-selected layer" in curve["layer_source"]
+    # Every replicate reports the fixed layer, so the artifact shape is unchanged.
+    for point in curve["points"]:
+        if point.get("status") == "ok":
+            assert {r["selected_layer"] for r in point["replicates"]} == {curve["layer"]}
+
+
+def test_curve_can_still_reselect_per_subsample_when_asked(tmp_path):
+    from deception_circuits.paper import run_learning_curve
+
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[8],
+                     learning_curve_subsamples=2)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    activations = load_activations(df, activation_dir, config)
+    curve = run_learning_curve(df, activations, manifest, config, layer=None)
+    assert curve["layer_policy"] == "reselected_per_subsample"
+    assert curve["layer"] is None
+
+
+def test_fixing_the_layer_does_not_change_which_groups_are_drawn(tmp_path):
+    """The cost saving must come from fewer fits, not from a different sample."""
+    from deception_circuits.paper import run_learning_curve
+
+    csv, activation_dir = _fixture(tmp_path)
+    config = _config(csv, activation_dir, tmp_path, learning_curve_sizes=[8],
+                     learning_curve_subsamples=3)
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, config)
+    activations = load_activations(df, activation_dir, config)
+    fixed = run_learning_curve(df, activations, manifest, config, layer=1)
+    searched = run_learning_curve(df, activations, manifest, config, layer=None)
+
+    def draws(curve):
+        return [r["train_groups_sha256"] for p in curve["points"]
+                if p.get("status") == "ok" for r in p["replicates"]]
+
+    assert draws(fixed) == draws(searched)

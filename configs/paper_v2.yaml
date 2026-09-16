@@ -18,6 +18,10 @@ n_seeds: 5
 bootstrap_resamples: 1000
 # Learning curve: training-set sizes in *groups* (hands), each evaluated over
 # `learning_curve_subsamples` independent draws. Empty list disables it.
+# The curve is evaluated at the layer the main loop selected on validation, so
+# it costs one fit per draw. Re-searching every layer inside each draw would be
+# n_layers times more fits (800 vs 25 on a 32-layer model) and asks a noisier
+# question; call run_learning_curve(..., layer=None) directly if you want that.
 learning_curve_sizes: []
 learning_curve_subsamples: 5
 # --- extraction: these fields now constrain `collect-activations` and are
