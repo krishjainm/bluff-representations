@@ -34,8 +34,8 @@ learning_curve_subsamples: 5
 # Instruct rather than base: the prompt issues an explicit output-format
 # instruction, so the base model is a different experiment. Record whichever you use.
 subject_model: meta-llama/Llama-3.1-8B-Instruct
-model_revision: REPLACE_WITH_PINNED_COMMIT_SHA
-tokenizer_revision: REPLACE_WITH_PINNED_COMMIT_SHA
+model_revision: 0e9e39f249a16976918f6564b8830bc894c89659
+tokenizer_revision: 0e9e39f249a16976918f6564b8830bc894c89659
 # bfloat16: an 8B model is ~16 GB in bf16 versus ~32 GB in fp32. Activations
 # are stored float32 either way, so this costs no artifact precision.
 torch_dtype: bfloat16
