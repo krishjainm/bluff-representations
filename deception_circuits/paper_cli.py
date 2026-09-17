@@ -235,62 +235,6 @@ def main() -> None:
             )
 
         return
-    if args.command == "run-transfer":
-        from .paper_transfer import run_cross_context_transfer
-
-        path = _manifest_path(config, out)
-        if not path.is_file():
-            raise FileNotFoundError(
-                "Create a split manifest before running cross-context transfer"
-            )
-
-        split_manifest = load_split_manifest(path, df, config)
-        activations = load_activations(
-            df,
-            config.activation_dir,
-            config,
-        )
-        layer_indices = load_activation_layer_indices(
-            config.activation_dir
-        )
-
-        result = run_cross_context_transfer(
-            activations,
-            df,
-            split_manifest,
-            config,
-            layer_indices=layer_indices,
-        )
-
-        output_path = out / "cross_context_results.json"
-        output_path.write_text(
-            json.dumps(result, indent=2) + "\n",
-            encoding="utf-8",
-        )
-
-        print(output_path)
-
-        if result["status"] == "not_run":
-            print(f"  not run: {result['reason']}")
-        else:
-            completed = [
-                cell
-                for cell in result["cells"]
-                if cell["status"] == "ok"
-            ]
-            skipped = [
-                cell
-                for cell in result["cells"]
-                if cell["status"] != "ok"
-            ]
-            print(
-                f"  contexts={result['contexts']} "
-                f"completed_cells={len(completed)} "
-                f"not_run_cells={len(skipped)}"
-            )
-
-        return
-
     if args.command == "make-figures":
         from .paper_figures import build_all_figures
 
