@@ -157,6 +157,27 @@ def test_probe_direction_recovers_the_readout():
     alignment = float(directions["probe"].vector @ runner.readout)
     assert alignment > 0.8, alignment
 
+def test_direction_fitting_separates_tensor_axis_from_physical_layer():
+    """Direction fitting may use tensor axis 1 while targeting model layer 5."""
+    df, activations, runner = _fixture()
+
+    # Put the known decodable signal on stored tensor axis 1.
+    activations[:, 1, :] = activations[:, READOUT_LAYER, :]
+
+    directions = build_direction_set(
+        activations,
+        df,
+        _manifest(df),
+        _config(),
+        layer=1,
+        physical_layer=READOUT_LAYER,
+    )
+
+    alignment = float(directions["probe"].vector @ runner.readout)
+    assert alignment > 0.8, alignment
+
+    for direction in directions.values():
+        assert direction.layer == READOUT_LAYER
 
 def test_orthogonal_direction_is_orthogonal_to_the_probe():
     df, activations, _ = _fixture()

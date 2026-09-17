@@ -562,10 +562,61 @@ def load_extraction_manifest(activation_dir: str | Path) -> dict[str, Any]:
         )
     return json.loads(path.read_text(encoding="utf-8"))
 
+def load_activation_layer_indices(activation_dir: str | Path) -> list[int]:
+    """Return the physical transformer layer represented by each tensor axis."""
+    manifest = load_extraction_manifest(activation_dir)
+    samples = manifest.get("samples") or []
+
+    if not samples:
+        raise ResearchIntegrityError(
+            "Activation manifest contains no sample records, so layer mapping "
+            "cannot be determined."
+        )
+
+    mappings: list[tuple[int, ...]] = []
+
+    for entry in samples:
+        raw = entry.get("layer_indices")
+        if raw is None:
+            raise ResearchIntegrityError(
+                f"Activation record {entry.get('sample_id')} is missing layer_indices."
+            )
+
+        mapping = tuple(int(layer) for layer in raw)
+        if not mapping:
+            raise ResearchIntegrityError(
+                f"Activation record {entry.get('sample_id')} has an empty layer mapping."
+            )
+
+        mappings.append(mapping)
+
+    first = mappings[0]
+
+    if any(mapping != first for mapping in mappings[1:]):
+        raise ResearchIntegrityError(
+            "Activation records disagree about physical transformer layer indices."
+        )
+
+    activation_shape = manifest.get("activation_shape")
+    if activation_shape is not None:
+        if not activation_shape:
+            raise ResearchIntegrityError(
+                "Activation manifest has an invalid empty activation_shape."
+            )
+
+        stored_layer_count = int(activation_shape[0])
+        if len(first) != stored_layer_count:
+            raise ResearchIntegrityError(
+                "Activation layer mapping length does not match the stored tensor "
+                f"layer dimension: mapping={len(first)}, tensor={stored_layer_count}."
+            )
+
+        return list(first)
 
 def verify_extraction_manifest(
     df: pd.DataFrame, activation_dir: str | Path, config: Any | None = None
 ) -> dict[str, Any]:
+
     """Check a manifest covers the dataset and matches the config that will use it.
 
     This is what stops a ``prompt_end`` config from silently consuming

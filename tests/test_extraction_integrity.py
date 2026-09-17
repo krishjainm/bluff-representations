@@ -16,8 +16,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
                                       load_activations, validate_dataset)
 from deception_circuits.paper_extraction import (ExtractionSpec, audit_activation_provenance,
-                                                 extract_sample, render_extraction_prompt,
-                                                 run_extraction, verify_extraction_manifest)
+                                                 extract_sample, load_activation_layer_indices,
+                                                 render_extraction_prompt, run_extraction,
+                                                 verify_extraction_manifest)
 
 from _stubs import StubHiddenStateProvider as StubProvider
 
@@ -160,6 +161,16 @@ def test_configured_layer_subset_is_honored(tmp_path):
     with pytest.raises(ResearchIntegrityError, match="exceed the model's"):
         extract_sample(df.iloc[0], _spec(layer_indices=(0, 99)), StubProvider())
 
+def test_activation_layer_mapping_preserves_physical_layer_numbers(tmp_path):
+    """Stored tensor axis positions must map back to real transformer layers."""
+    df = pd.read_csv(_dataset(tmp_path, n_groups=2))
+    out = tmp_path / "acts"
+    spec = _spec(layer_indices=(1, 3))
+
+    manifest = run_extraction(df, spec, out, StubProvider())
+
+    assert manifest["activation_shape"] == [2, 3]
+    assert load_activation_layer_indices(out) == [1, 3]
 
 # --- resumability and mismatch refusal ------------------------------------------
 

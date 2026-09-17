@@ -480,10 +480,32 @@ def run_baselines(df: pd.DataFrame, manifest: dict[str, Any], config: PaperConfi
         result["nuisance_only"] = {"status": "not_run", "reason": "no configured nuisance columns available"}
     return result
 
-
-def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: dict[str, Any], config: PaperConfig) -> dict[str, Any]:
+def run_probe_experiment(
+    df: pd.DataFrame,
+    activations: np.ndarray,
+    manifest: dict[str, Any],
+    config: PaperConfig,
+    *,
+    layer_indices: list[int] | None = None,
+) -> dict[str, Any]:
     """Select layers solely on validation, then evaluate frozen choices on test."""
+    if layer_indices is None:
+        layer_indices = list(range(activations.shape[1]))
+
+    layer_indices = [int(layer) for layer in layer_indices]
+
+    if len(layer_indices) != activations.shape[1]:
+        raise ResearchIntegrityError(
+            "Physical layer mapping length must match the activation tensor layer dimension."
+        )
+
+    if len(set(layer_indices)) != len(layer_indices) or any(layer < 0 for layer in layer_indices):
+        raise ResearchIntegrityError(
+            "Physical layer mapping must contain unique, non-negative transformer layers."
+        )
+
     index = {sid: i for i, sid in enumerate(df.sample_id)}
+
     def take(part: str):
         ids = manifest[part]; ii = np.array([index[s] for s in ids])
         return activations[ii], df.iloc[ii].label.to_numpy(dtype=int)
@@ -498,17 +520,56 @@ def run_probe_experiment(df: pd.DataFrame, activations: np.ndarray, manifest: di
           f"{len(ytr)} train / {len(yva)} val / {len(yte)} test rows", flush=True)
     for index, seed in enumerate(range(config.seed, config.seed + config.n_seeds), start=1):
         started = datetime.now(timezone.utc)
-        selected, val_scores, model = _select_layer_on_validation(xtr, ytr, xva, yva, config, seed)
-        test_prob = model.predict_proba(xte[:, selected])[:, 1]
-        runs.append({"seed": seed, "selected_layer": selected, "validation_auroc": val_scores[selected],
-                     "validation_auroc_by_layer": [float(v) for v in val_scores],
-                     "test": _metrics(yte, test_prob),
-                     "test_auroc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="auroc"),
-                     "test_pr_auc_grouped_ci": grouped_bootstrap_ci(yte, test_prob, test_groups, seed=seed, n_resamples=config.bootstrap_resamples, metric="pr_auc")})
+
+        selected_axis, val_scores, model = _select_layer_on_validation(
+            xtr,
+            ytr,
+            xva,
+            yva,
+            config,
+            seed,
+        )
+        selected_physical_layer = layer_indices[selected_axis]
+
+        test_prob = model.predict_proba(xte[:, selected_axis])[:, 1]
+
+        runs.append({
+            "seed": seed,
+            # Transitional compatibility field. Downstream code will be migrated
+            # to the explicit axis/physical-layer fields in the next steps.
+            "selected_layer": selected_axis,
+            "selected_layer_index": selected_axis,
+            "selected_physical_layer": selected_physical_layer,
+            "validation_auroc": val_scores[selected_axis],
+            "validation_auroc_by_layer": [float(v) for v in val_scores],
+            "test": _metrics(yte, test_prob),
+            "test_auroc_grouped_ci": grouped_bootstrap_ci(
+                yte,
+                test_prob,
+                test_groups,
+                seed=seed,
+                n_resamples=config.bootstrap_resamples,
+                metric="auroc",
+            ),
+            "test_pr_auc_grouped_ci": grouped_bootstrap_ci(
+                yte,
+                test_prob,
+                test_groups,
+                seed=seed,
+                n_resamples=config.bootstrap_resamples,
+                metric="pr_auc",
+            ),
+        })
+
         elapsed = (datetime.now(timezone.utc) - started).total_seconds()
-        print(f"[probe] seed {index}/{config.n_seeds} done in {elapsed:.0f}s: "
-              f"layer {selected}, val AUROC {val_scores[selected]:.4f}, "
-              f"test AUROC {runs[-1]['test']['auroc']:.4f}", flush=True)
+        print(
+            f"[probe] seed {index}/{config.n_seeds} done in {elapsed:.0f}s: "
+            f"tensor axis {selected_axis} -> model layer {selected_physical_layer}, "
+            f"val AUROC {val_scores[selected_axis]:.4f}, "
+            f"test AUROC {runs[-1]['test']['auroc']:.4f}",
+            flush=True,
+        )
+
     result = {"selection_partition": "validation", "test_partition_used_for_selection": False,
               "n_train": len(ytr), "n_validation": len(yva), "n_test": len(yte), "runs": runs,
               "test_auroc_mean": float(np.mean([r["test"]["auroc"] for r in runs])),
@@ -558,13 +619,30 @@ def summarize_across_seeds(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 "median": float(np.median(arr)),
                 "iqr": [float(np.quantile(arr, .25)), float(np.quantile(arr, .75))],
                 "min": float(arr.min()), "max": float(arr.max()), "n_seeds": int(len(arr))}
-    layers = [int(r["selected_layer"]) for r in runs]
+    layer_indices = [
+        int(r.get("selected_layer_index", r["selected_layer"]))
+        for r in runs
+    ]
+    physical_layers = [
+        int(r.get("selected_physical_layer", r["selected_layer"]))
+        for r in runs
+    ]
+
+    def layer_summary(values: list[int]) -> dict[str, Any]:
+        return {
+            "values": values,
+            "modal": max(set(values), key=values.count),
+            "n_distinct": len(set(values)),
+        }
+
     return {
         "test_auroc": spread([r["test"]["auroc"] for r in runs]),
         "test_pr_auc": spread([r["test"]["pr_auc"] for r in runs]),
         "test_ece": spread([r["test"]["ece"] for r in runs]),
-        "selected_layer": {"values": layers, "modal": max(set(layers), key=layers.count),
-                           "n_distinct": len(set(layers))},
+        # Compatibility alias until all downstream consumers are migrated.
+        "selected_layer": layer_summary(layer_indices),
+        "selected_layer_index": layer_summary(layer_indices),
+        "selected_physical_layer": layer_summary(physical_layers),
     }
 
 

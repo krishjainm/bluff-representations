@@ -130,68 +130,135 @@ def orthogonal_direction(reference: np.ndarray, *, seed: int) -> np.ndarray:
 
 
 def build_direction_set(
-    activations: np.ndarray, df: pd.DataFrame, manifest: dict[str, Any],
-    config: PaperConfig, *, layer: int, nuisance_column: str | None = None,
+    activations: np.ndarray,
+    df: pd.DataFrame,
+    manifest: dict[str, Any],
+    config: PaperConfig,
+    *,
+    layer: int,
+    physical_layer: int | None = None,
+    nuisance_column: str | None = None,
 ) -> dict[str, Direction]:
     """Construct the probe direction and every control direction, from train only.
+
+    ``layer`` is the stored activation tensor axis used for numpy indexing.
+    ``physical_layer`` is the corresponding transformer block number recorded in
+    direction provenance. When omitted, it defaults to ``layer`` for backwards
+    compatibility with full-layer activation tensors.
 
     Fitting on the training partition alone matters: a direction derived with any
     held-out information would make the causal evaluation leak even if the
     endpoint itself is independent.
     """
+    layer_index = int(layer)
+
+    if not 0 <= layer_index < activations.shape[1]:
+        raise ResearchIntegrityError(
+            f"Activation layer index {layer_index} is outside the stored tensor "
+            f"with {activations.shape[1]} layer axes"
+        )
+
+    reported_layer = (
+        layer_index
+        if physical_layer is None
+        else int(physical_layer)
+    )
+
+    if reported_layer < 0:
+        raise ResearchIntegrityError(
+            f"Physical transformer layer must be non-negative; got {reported_layer}"
+        )
+
     index = {sid: i for i, sid in enumerate(df.sample_id)}
     train_pos = np.array([index[s] for s in manifest["train"]])
-    x_train = activations[train_pos, layer]
+    x_train = activations[train_pos, layer_index]
     y_train = df.label.to_numpy(int)[train_pos]
+
     if len(np.unique(y_train)) < 2:
-        raise ResearchIntegrityError("Direction fitting needs both label classes in train")
+        raise ResearchIntegrityError(
+            "Direction fitting needs both label classes in train"
+        )
 
     def fit(y: np.ndarray) -> np.ndarray:
-        model = LogisticRegression(C=config.probe_c, class_weight="balanced", max_iter=5000,
-                                   random_state=config.seed)
+        model = LogisticRegression(
+            C=config.probe_c,
+            class_weight="balanced",
+            max_iter=5000,
+            random_state=config.seed,
+        )
         model.fit(x_train, y)
         return model.coef_.ravel()
 
     raw_probe = fit(y_train)
+
     if float(np.linalg.norm(raw_probe)) < 1e-12:
         raise ResearchIntegrityError(
-            f"The probe learned a zero-norm direction at layer {layer}: these activations carry no "
-            "linearly decodable label signal, so there is no direction to steer along. Check the "
-            "layer choice and that the activations are real rather than a placeholder.")
+            "The probe learned a zero-norm direction at activation axis "
+            f"{layer_index} (physical layer {reported_layer}): these activations "
+            "carry no linearly decodable label signal, so there is no direction "
+            "to steer along. Check the layer choice and that the activations are "
+            "real rather than a placeholder."
+        )
+
     probe_vector = _unit(raw_probe)
     rng = np.random.default_rng(config.seed)
+
     directions: dict[str, Direction] = {
-        "probe": Direction("probe", probe_vector, "logistic probe weights, train partition only",
-                           layer, config.seed),
+        "probe": Direction(
+            "probe",
+            probe_vector,
+            "logistic probe weights, train partition only",
+            reported_layer,
+            config.seed,
+        ),
         "random_matched_norm": Direction(
-            "random_matched_norm", _unit(rng.normal(size=probe_vector.shape[0])),
-            "random gaussian, unit norm (matched to probe by construction)", layer, config.seed,
-            "tests whether any direction of this magnitude moves the endpoint"),
+            "random_matched_norm",
+            _unit(rng.normal(size=probe_vector.shape[0])),
+            "random gaussian, unit norm (matched to probe by construction)",
+            reported_layer,
+            config.seed,
+            "tests whether any direction of this magnitude moves the endpoint",
+        ),
         "orthogonal": Direction(
-            "orthogonal", orthogonal_direction(probe_vector, seed=config.seed + 1),
-            "random vector orthogonalised against the probe direction", layer, config.seed + 1,
-            "tests whether the effect is specific to the probe subspace"),
+            "orthogonal",
+            orthogonal_direction(probe_vector, seed=config.seed + 1),
+            "random vector orthogonalised against the probe direction",
+            reported_layer,
+            config.seed + 1,
+            "tests whether the effect is specific to the probe subspace",
+        ),
     }
 
     shuffled = rng.permutation(y_train)
     if len(np.unique(shuffled)) >= 2:
         directions["shuffled_label"] = Direction(
-            "shuffled_label", _unit(fit(shuffled)),
-            "probe refit on permuted training labels", layer, config.seed,
-            "tests whether the fitting procedure alone produces an effective direction")
+            "shuffled_label",
+            _unit(fit(shuffled)),
+            "probe refit on permuted training labels",
+            reported_layer,
+            config.seed,
+            "tests whether the fitting procedure alone produces an effective direction",
+        )
 
     if nuisance_column and nuisance_column in df.columns:
         values = df[nuisance_column].iloc[train_pos]
+
         # Binarise against the most common value so a categorical nuisance yields
         # a single comparable direction.
         if values.notna().any() and values.nunique(dropna=True) >= 2:
             majority = values.mode(dropna=True).iloc[0]
             nuisance_y = (values != majority).to_numpy(int)
+
             if len(np.unique(nuisance_y)) >= 2:
                 directions[f"nuisance_{nuisance_column}"] = Direction(
-                    f"nuisance_{nuisance_column}", _unit(fit(nuisance_y)),
-                    f"probe fit to predict {nuisance_column} != {majority!r}", layer, config.seed,
-                    "tests whether a strategy direction moves the endpoint as much as the probe")
+                    f"nuisance_{nuisance_column}",
+                    _unit(fit(nuisance_y)),
+                    f"probe fit to predict {nuisance_column} != {majority!r}",
+                    reported_layer,
+                    config.seed,
+                    "tests whether a strategy direction moves the endpoint as much as the probe",
+                )
+
     return directions
 
 

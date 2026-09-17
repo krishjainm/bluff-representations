@@ -16,8 +16,9 @@ from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
                                       run_probe_experiment, save_manifest,
                                       summarize_across_seeds, summarize_partitions,
                                       validate_dataset)
-from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
-
+from deception_circuits.paper_extraction import (ExtractionSpec,
+                                                 load_activation_layer_indices,
+                                                 run_extraction)
 STUB_MODEL = "stub/tiny-test-model"
 
 
@@ -202,13 +203,58 @@ def test_probe_experiment_emits_a_seed_summary(tmp_path):
     config = _config(csv, activation_dir, tmp_path)
     df = validate_dataset(csv)
     manifest = make_split_manifest(df, config)
-    result = run_probe_experiment(df, load_activations(df, activation_dir, config), manifest, config)
+    result = run_probe_experiment(
+        df,
+        load_activations(df, activation_dir, config),
+        manifest,
+        config,
+    )
     assert result["seed_summary"]["test_auroc"]["n_seeds"] == 2
     assert "ece" in result["runs"][0]["test"]
     assert len(result["runs"][0]["validation_auroc_by_layer"]) == 4
 
 
-# --- learning curves -----------------------------------------------------------
+def test_probe_result_distinguishes_tensor_axis_from_physical_layer(tmp_path):
+    """A selected activation axis must report its true transformer layer."""
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    activation_dir = tmp_path / "activations"
+
+    run_extraction(
+        df,
+        ExtractionSpec(
+            subject_model=STUB_MODEL,
+            prompt_template_id="poker_action_v1",
+            layer_indices=(1, 3),
+        ),
+        activation_dir,
+        StubHiddenStateProvider(),
+    )
+
+    layer_indices = load_activation_layer_indices(activation_dir)
+    assert layer_indices == [1, 3]
+
+    activations = np.zeros((len(df), 2, 3), dtype=np.float32)
+    activations[:, 1, 0] = df["label"].to_numpy(dtype=np.float32)
+
+    config = _config(csv, activation_dir, tmp_path)
+    manifest = make_split_manifest(df, config)
+
+    result = run_probe_experiment(
+        df,
+        activations,
+        manifest,
+        config,
+        layer_indices=layer_indices,
+    )
+
+    for run in result["runs"]:
+        assert run["selected_layer_index"] == 1
+        assert run["selected_physical_layer"] == 3
+        assert run["selected_layer"] == 1
+
+
+# --- learning curves
 
 def test_learning_curve_uses_multiple_independent_subsamples(tmp_path):
     csv, activation_dir = _fixture(tmp_path)

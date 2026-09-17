@@ -11,8 +11,8 @@ import yaml
 from .paper import (PaperConfig, audit_notes, audit_run, load_activations,
                     load_split_manifest, make_split_manifest, run_probe_experiment,
                     save_manifest, validate_dataset, write_run_metadata)
-from .paper_extraction import ExtractionSpec, run_extraction
-
+from .paper_extraction import (ExtractionSpec, load_activation_layer_indices,
+                               run_extraction)
 COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes",
             "run-baselines", "analyze-confounds", "train-sae", "run-interventions",
             "make-figures", "audit")
@@ -108,13 +108,33 @@ def main() -> None:
                 "layer rather than choosing its own, so it cannot leak test information."
             )
         runs = json.loads(probe_results.read_text())["runs"]
-        # Modal selected layer across seeds; selection happened on validation upstream.
-        layers = [int(r["selected_layer"]) for r in runs]
-        layer = max(set(layers), key=layers.count)
+
+        # Confound analyses index the stored activation tensor, so they must use
+        # the activation-axis index rather than the physical transformer layer.
+        layer_indices = [
+            int(r.get("selected_layer_index", r["selected_layer"]))
+            for r in runs
+        ]
+        layer_index = max(set(layer_indices), key=layer_indices.count)
+
+        activation_layer_indices = load_activation_layer_indices(config.activation_dir)
+        physical_layer = activation_layer_indices[layer_index]
+
         activations = load_activations(df, config.activation_dir, config)
-        result = run_confound_suite(activations, df, split_manifest, config, layer=layer)
+        result = run_confound_suite(
+            activations,
+            df,
+            split_manifest,
+            config,
+            layer=layer_index,
+        )
+        result["selected_layer_index"] = layer_index
+        result["selected_physical_layer"] = physical_layer
         result["selected_layer_source"] = {
-            "from": "probe_results.json", "per_seed_layers": layers, "rule": "modal layer across seeds"}
+            "from": "probe_results.json",
+            "per_seed_layer_indices": layer_indices,
+            "rule": "modal activation tensor axis across seeds",
+        }
         (out / "confound_results.json").write_text(json.dumps(result, indent=2) + "\n")
         unavailable = result["metadata_availability"]["unavailable_analyses"]
         print(out / "confound_results.json")
@@ -172,21 +192,44 @@ def main() -> None:
                 "Set sae_config in the config. n_features must be explicit: there is no "
                 "'same as input' default, because that is not an overcomplete dictionary.")
         split_manifest = load_split_manifest(path, df, config)
+
         if probe_results.is_file():
-            layers = [int(r["selected_layer"]) for r in json.loads(probe_results.read_text())["runs"]]
-            layer = max(set(layers), key=layers.count)
+            runs = json.loads(probe_results.read_text())["runs"]
+            layer_indices = [
+                int(r.get("selected_layer_index", r["selected_layer"]))
+                for r in runs
+            ]
+            layer_index = max(set(layer_indices), key=layer_indices.count)
         else:
             raise FileNotFoundError(
                 "train-sae reuses the validation-selected layer from probe_results.json so the "
-                "SAE and the probe are not analysed at inconsistent layers. Run train-probes first.")
+                "SAE and the probe are not analysed at inconsistent layers. Run train-probes first."
+            )
+
+        activation_layer_indices = load_activation_layer_indices(config.activation_dir)
+        physical_layer = activation_layer_indices[layer_index]
+
         sae_config = SAEConfig(**config.sae_config)
         activations = load_activations(df, config.activation_dir, config)
+
         result = run_sae_experiment(
-            activations, df, split_manifest, config, sae_config, layer=layer,
+            activations,
+            df,
+            split_manifest,
+            config,
+            sae_config,
+            layer=layer_index,
             top_n_features=config.sae_top_n_features,
             stability_seeds=[int(s) for s in config.sae_stability_seeds],
-            metadata_columns=config.nuisance_columns, output_dir=out,
-            device=args.device)
+            metadata_columns=config.nuisance_columns,
+            output_dir=out,
+            device=args.device,
+        )
+
+        # SAE slices the stored activation tensor by axis. Record the physical
+        # transformer layer separately so the artifact cannot be misread later.
+        result["layer_index"] = layer_index
+        result["physical_layer"] = physical_layer
         (out / "sae_results.json").write_text(json.dumps(result, indent=2) + "\n")
         print(out / "sae_results.json")
         test = result["diagnostics"]["test"]
@@ -218,10 +261,29 @@ def main() -> None:
         split_manifest = load_split_manifest(path, df, config)
         runs = json.loads(probe_results.read_text())["runs"]
 
-        layers = [int(r["selected_layer"]) for r in runs]
-        layer = int(config.intervention_layer) if config.intervention_layer is not None \
-            else max(set(layers), key=layers.count)
+        activation_layer_indices = load_activation_layer_indices(config.activation_dir)
+
+        if config.intervention_layer is not None:
+            physical_layer = int(config.intervention_layer)
+
+            if physical_layer not in activation_layer_indices:
+                raise SystemExit(
+                    "Configured intervention_layer is a physical transformer layer, "
+                    f"but layer {physical_layer} was not extracted. Available physical "
+                    f"layers are {activation_layer_indices}."
+                )
+
+            layer_index = activation_layer_indices.index(physical_layer)
+        else:
+            selected_indices = [
+                int(r.get("selected_layer_index", r["selected_layer"]))
+                for r in runs
+            ]
+            layer_index = max(set(selected_indices), key=selected_indices.count)
+            physical_layer = activation_layer_indices[layer_index]
+
         held_out = df[df.sample_id.isin(set(split_manifest["test"]))]
+
         if config.causal_eval_size and len(held_out) > config.causal_eval_size:
             # Deterministic head of the held-out set; size is configurable, not hardcoded.
             held_out = held_out.head(config.causal_eval_size)
@@ -230,8 +292,8 @@ def main() -> None:
             raise SystemExit(
                 "run-interventions loads subject-model weights and runs real forward passes.\n"
                 f"  model:      {config.subject_model}\n"
-                f"  layer:      {layer} (site={config.intervention_site or 'block'})\n"
-                f"  prompts:    {len(held_out)} held-out\n"
+                f"  layer:      {physical_layer} "
+                f"(activation axis {layer_index}, site={config.intervention_site or 'block'})\n"                f"  prompts:    {len(held_out)} held-out\n"
                 f"  strengths:  {list(config.intervention_strengths)}\n"
                 f"  endpoint:   P({config.endpoint_positive_option}) over "
                 f"{list(config.endpoint_options)}\n"
@@ -240,14 +302,20 @@ def main() -> None:
         from .paper_causal import TransformersInterventionRunner
 
         activations = load_activations(df, config.activation_dir, config)
-        directions = build_direction_set(activations, df, split_manifest, config, layer=layer,
-                                         nuisance_column=config.causal_nuisance_column)
-        conditions = default_conditions(
-            wrong_layer_offset=choose_wrong_layer_offset(layer, activations.shape[1]))
-        for name in directions:
-            if name.startswith("nuisance_"):
-                conditions = conditions + (nuisance_condition(name),)
-                runner = TransformersInterventionRunner(
+
+        # Direction fitting indexes the stored activation tensor, while the
+        # intervention itself must target the real transformer block.
+        directions = build_direction_set(
+            activations,
+            df,
+            split_manifest,
+            config,
+            layer=layer_index,
+            physical_layer=physical_layer,
+            nuisance_column=config.causal_nuisance_column,
+        )
+
+        runner = TransformersInterventionRunner(
             config.subject_model,
             device=args.device,
             site=config.intervention_site or "block",
@@ -255,17 +323,48 @@ def main() -> None:
             tokenizer_revision=config.tokenizer_revision,
             torch_dtype=config.torch_dtype,
         )
+
+        model_n_layers = getattr(runner.model.config, "num_hidden_layers", None)
+        if model_n_layers is None:
+            raise SystemExit(
+                "The loaded subject model does not expose num_hidden_layers, so "
+                "the wrong-layer causal control cannot be constructed safely."
+            )
+
+        conditions = default_conditions(
+            wrong_layer_offset=choose_wrong_layer_offset(
+                physical_layer,
+                int(model_n_layers),
+            )
+        )
+
+        for name in directions:
+            if name.startswith("nuisance_"):
+                conditions = conditions + (nuisance_condition(name),)
+
         # Same template the activations were extracted with, so the intervention
         # lands at the position the direction was fitted for.
         spec = ExtractionSpec.from_paper_config(config)
+
         result = run_causal_suite(
-            runner, held_out, directions,
-            ForcedChoiceEndpoint(tuple(config.endpoint_options), config.endpoint_positive_option),
-            layer=layer, strengths=list(config.intervention_strengths),
-            conditions=conditions, seed=config.seed,
+            runner,
+            held_out,
+            directions,
+            ForcedChoiceEndpoint(
+                tuple(config.endpoint_options),
+                config.endpoint_positive_option,
+            ),
+            layer=physical_layer,
+            strengths=list(config.intervention_strengths),
+            conditions=conditions,
+            seed=config.seed,
             n_resamples=config.bootstrap_resamples,
             group_column=split_manifest.get("group_column", "base_item_id"),
-            prompt_template=spec.prompt_template)
+            prompt_template=spec.prompt_template,
+        )
+
+        result["activation_layer_index"] = layer_index
+        result["physical_layer"] = physical_layer
         # Per-row records go to CSV; the JSON keeps summaries only.
         records = result.pop("records")
         pd.DataFrame(records).to_csv(out / "intervention_records.csv", index=False)
@@ -283,10 +382,17 @@ def main() -> None:
             raise FileNotFoundError("Create a split manifest before training probes")
         split_manifest = load_split_manifest(path, df, config)
         activations = load_activations(df, config.activation_dir, config)
+        layer_indices = load_activation_layer_indices(config.activation_dir)
 
         (out / "resolved_config.yaml").write_text(yaml.safe_dump(config.__dict__, sort_keys=True))
         write_run_metadata(config, out)
-        result = run_probe_experiment(df, activations, split_manifest, config)
+        result = run_probe_experiment(
+            df,
+            activations,
+            split_manifest,
+            config,
+            layer_indices=layer_indices,
+        )
         (out / "probe_results.json").write_text(json.dumps(result, indent=2) + "\n")
         print(out / "probe_results.json")
         return
