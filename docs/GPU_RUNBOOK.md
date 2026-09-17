@@ -6,16 +6,16 @@ sequence for the part that needs rented compute.
 
 ## Why this is not run locally
 
-The development machine has 16 GB unified memory, MPS, no CUDA. Llama-3.1-8B in
-fp16 is ~16 GB of weights alone, so it does not fit alongside the OS and the
-activation buffers. It is also a gated repo.
+The current local environment reports CUDA unavailable. The production run therefore
+uses a rented CUDA GPU. Llama-3.1-8B in bfloat16 is roughly 16 GB of weights before
+activation buffers and runtime overhead. The model repository is also gated.
 
 ## What you need
 
 | Resource | Requirement | Why |
 |---|---|---|
 | VRAM | ≥ 20 GB | bf16 weights (~16 GB) plus activation buffers. The configs set `torch_dtype: bfloat16`; fp32 would be ~32 GB. An A100 (40 or 80 GB) has ample headroom. |
-| Disk | ~50 GB free | 23.4 GB of activations per prompt variant, two variants |
+| Disk | >= 80 GB free | ~46.8 GB for both activation variants plus model cache and run artifacts |
 | Hugging Face | a token with Llama-3.1 access | the repo is gated |
 | Time | measured: 44,631 forward passes, ~9.0M tokens of prefill, per variant | no generation is involved in extraction |
 
@@ -37,7 +37,7 @@ the correctness risk.
 
 ```bash
 git clone <this repo> && cd deception-llms
-git checkout conference-rebuild
+git checkout conference-finalization
 uv sync
 huggingface-cli login          # required: Llama-3.1 is gated
 ```
@@ -62,12 +62,12 @@ Expect `44631 rows, 44311 groups` for both, and these integrity flags:
 `response_is_label_verbatim: True`, `single_action_category: True`,
 `equity_available: False`.
 
-## Step 2 — pin the model revision
+## Step 2 - verify the pinned model revision
 
-Both configs ship `model_revision: REPLACE_WITH_PINNED_COMMIT_SHA`. **Replace it
-with the actual commit SHA** before running. The extraction manifest records
-whatever is in the config, so an unpinned id produces artifacts that cannot be
-reproduced later. Get it from the model page or:
+Both production configs pin both `model_revision` and `tokenizer_revision` to
+`0e9e39f249a16976918f6564b8830bc894c89659`. This revision was verified against
+Hugging Face during the production preflight. The extraction manifest records the
+pinned revision so the resulting artifacts remain reproducible. Re-verify it with:
 
 ```bash
 python -c "from huggingface_hub import HfApi; \
