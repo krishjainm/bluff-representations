@@ -49,6 +49,15 @@ def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _sha256_file(path: Path) -> str:
+    """Return the SHA-256 of an artifact without loading it into memory at once."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 @dataclass(frozen=True)
 class ExtractionSpec:
     """Every choice that changes the numbers in an activation artifact.
@@ -463,21 +472,50 @@ def run_extraction(
     records: dict[str, dict[str, Any]] = {}
     n_extracted = 0
     n_resumed = 0
+
     for position, (_, row) in enumerate(df.iterrows()):
         sid = str(row["sample_id"])
         artifact = root / f"sample_{sid}.pt"
         prior = journal.get(sid)
+
         if resume and prior is not None and artifact.is_file():
-            records[sid] = prior
-            n_resumed += 1
-            continue
+            current_rendering = render_extraction_prompt(row, spec, provider)
+            current_prompt_sha256 = current_rendering.to_record()["prompt_sha256"]
+            recorded_prompt_sha256 = prior.get("prompt_sha256")
+
+            if recorded_prompt_sha256 == current_prompt_sha256:
+                current_artifact_sha256 = _sha256_file(artifact)
+                recorded_artifact_sha256 = prior.get("artifact_sha256")
+
+                if recorded_artifact_sha256 in (None, current_artifact_sha256):
+                    # Older manifests may predate artifact hashing. Upgrade them
+                    # in-place without rerunning the expensive model forward pass.
+                    upgraded = {
+                        **prior,
+                        "artifact_sha256": current_artifact_sha256,
+                    }
+
+                    if recorded_artifact_sha256 is None:
+                        with journal_path.open("a", encoding="utf-8") as f:
+                            f.write(json.dumps(upgraded, sort_keys=True) + "\n")
+
+                    records[sid] = upgraded
+                    n_resumed += 1
+                    continue
+
         tensor, rendering, layer_indices = extract_sample(row, spec, provider)
+
         # Save the tensor first; the journal entry is the commit record.
         torch.save(tensor, artifact)
+
         record = {
-            "sample_id": sid, "artifact": artifact.name,
-            "shape": list(tensor.shape), "layer_indices": layer_indices,
-            "subject_model": spec.subject_model, "model_revision": spec.model_revision,
+            "sample_id": sid,
+            "artifact": artifact.name,
+            "artifact_sha256": _sha256_file(artifact),
+            "shape": list(tensor.shape),
+            "layer_indices": layer_indices,
+            "subject_model": spec.subject_model,
+            "model_revision": spec.model_revision,
             "tokenizer_revision": spec.tokenizer_revision,
             "activation_site": spec.activation_site,
             "prompt_template_id": spec.prompt_template_id,
@@ -485,10 +523,13 @@ def run_extraction(
             "spec_fingerprint": spec.fingerprint(),
             **rendering.to_record(),
         }
+
         with journal_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, sort_keys=True) + "\n")
+
         records[sid] = record
         n_extracted += 1
+
         if progress_every and n_extracted % progress_every == 0:
             print(f"extracted {n_extracted} new / {len(df)} total", flush=True)
 
@@ -542,12 +583,37 @@ def verify_extraction_manifest(
         )
     if recorded.fingerprint() != manifest.get("spec_fingerprint"):
         raise ResearchIntegrityError("Activation manifest fingerprint does not match its recorded spec")
-    stale = [e["sample_id"] for e in manifest["samples"] if e.get("spec_fingerprint") != manifest["spec_fingerprint"]]
+    stale = [
+        e["sample_id"]
+        for e in manifest["samples"]
+        if e.get("spec_fingerprint") != manifest["spec_fingerprint"]
+    ]
     if stale:
         raise ResearchIntegrityError(
-            f"{len(stale)} activation records were produced under a different spec (first: {stale[:5]})"
+            f"{len(stale)} activation records were produced under a different spec "
+            f"(first: {stale[:5]})"
         )
+
+    root = Path(activation_dir)
+    for entry in manifest["samples"]:
+        artifact = root / entry["artifact"]
+        if not artifact.is_file():
+            raise ResearchIntegrityError(
+                f"Activation artifact recorded in the manifest is missing: {artifact}"
+            )
+
+        recorded_hash = entry.get("artifact_sha256")
+        if recorded_hash is not None:
+            actual_hash = _sha256_file(artifact)
+            if actual_hash != recorded_hash:
+                raise ResearchIntegrityError(
+                    f"Activation artifact hash mismatch for sample_id="
+                    f"{entry.get('sample_id')}: expected {recorded_hash}, got {actual_hash}. "
+                    "The artifact may be corrupted or modified."
+                )
+
     if config is not None:
+
         expected = paper_config_spec_fields(config)
         conflicts = {
             key: (value, getattr(recorded, key))

@@ -178,6 +178,81 @@ def test_extraction_resumes_sample_wise(tmp_path):
     third = run_extraction(df, spec, out, StubProvider())
     assert third["n_newly_extracted"] == 1 and third["n_resumed"] == len(df) - 1
 
+def test_resume_reextracts_when_prompt_content_changes(tmp_path):
+    """A sample_id alone must never authorize reuse after its prompt changed."""
+    df = pd.read_csv(_dataset(tmp_path, n_groups=3))
+    out = tmp_path / "acts"
+    spec = _spec()
+
+    first = run_extraction(df, spec, out, StubProvider())
+    assert first["n_newly_extracted"] == len(df)
+
+    changed = df.copy()
+    changed.loc[0, "statement"] = (
+        str(changed.loc[0, "statement"]) + " CHANGED_PROMPT_CONTENT"
+    )
+
+    second = run_extraction(changed, spec, out, StubProvider())
+
+    assert second["n_newly_extracted"] == 1
+    assert second["n_resumed"] == len(df) - 1
+
+    changed_sid = str(changed.loc[0, "sample_id"])
+
+    original_record = next(
+        record
+        for record in first["samples"]
+        if str(record["sample_id"]) == changed_sid
+    )
+    changed_record = next(
+        record
+        for record in second["samples"]
+        if str(record["sample_id"]) == changed_sid
+    )
+
+    assert changed_record["prompt_sha256"] != original_record["prompt_sha256"]
+
+
+def test_resume_reextracts_when_activation_artifact_hash_changes(tmp_path):
+    """A modified tensor file must not be silently trusted during resume."""
+    df = pd.read_csv(_dataset(tmp_path, n_groups=3))
+    out = tmp_path / "acts"
+    spec = _spec()
+
+    first = run_extraction(df, spec, out, StubProvider())
+    assert first["n_newly_extracted"] == len(df)
+
+    sid = str(df.iloc[0]["sample_id"])
+    artifact = out / f"sample_{sid}.pt"
+
+    original_tensor = torch.load(
+        artifact,
+        map_location="cpu",
+        weights_only=True,
+    ).clone()
+
+    torch.save(torch.full((4, 3), 999.0), artifact)
+
+    second = run_extraction(df, spec, out, StubProvider())
+
+    assert second["n_newly_extracted"] == 1
+    assert second["n_resumed"] == len(df) - 1
+
+    repaired_tensor = torch.load(
+        artifact,
+        map_location="cpu",
+        weights_only=True,
+    )
+
+    repaired_record = next(
+        record
+        for record in second["samples"]
+        if str(record["sample_id"]) == sid
+    )
+
+    assert torch.equal(repaired_tensor, original_tensor)
+    assert "artifact_sha256" in repaired_record
+    assert len(repaired_record["artifact_sha256"]) == 64
 
 def test_extraction_refuses_to_overwrite_a_different_spec(tmp_path):
     df = pd.read_csv(_dataset(tmp_path, n_groups=3))
@@ -281,8 +356,22 @@ def test_audit_detects_a_deleted_artifact(tmp_path):
     run_extraction(df, _spec(), acts, StubProvider())
     (acts / "sample_0-0.pt").unlink()
     failures = audit_activation_provenance(df, acts, _config(csv, acts, tmp_path))
-    assert any("absent" in f for f in failures)
+    assert any("missing" in f.lower() for f in failures)
 
+def test_load_activations_rejects_tampered_artifact_hash(tmp_path):
+    """Normal analysis must reject an artifact modified after extraction."""
+    csv = _dataset(tmp_path, n_groups=3)
+    df = validate_dataset(csv)
+    acts = tmp_path / "acts"
+
+    run_extraction(df, _spec(), acts, StubProvider())
+
+    sid = str(df.iloc[0]["sample_id"])
+    artifact = acts / f"sample_{sid}.pt"
+    torch.save(torch.full((4, 3), 999.0), artifact)
+
+    with pytest.raises(ResearchIntegrityError, match="artifact hash mismatch"):
+        load_activations(df, acts, _config(csv, acts, tmp_path))
 
 def test_spec_from_paper_config_maps_residual_stream_and_layer_selection(tmp_path):
     csv = _dataset(tmp_path, n_groups=3)
