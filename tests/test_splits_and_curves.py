@@ -248,6 +248,8 @@ def test_probe_result_distinguishes_tensor_axis_from_physical_layer(tmp_path):
         layer_indices=layer_indices,
     )
 
+    assert result["activation_layer_indices"] == [1, 3]
+
     for run in result["runs"]:
         assert run["selected_layer_index"] == 1
         assert run["selected_physical_layer"] == 3

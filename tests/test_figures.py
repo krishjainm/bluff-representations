@@ -19,12 +19,26 @@ from deception_circuits.paper_figures import (FIGURE_BUILDERS, audit_figures, bu
 
 
 def _probe_results(*, with_curve: bool = True) -> dict:
-    runs = [{"seed": s, "selected_layer": 2, "validation_auroc": 0.8,
-             "validation_auroc_by_layer": [0.55, 0.62, 0.81, 0.74],
-             "test": {"auroc": 0.78, "pr_auc": 0.6, "ece": 0.08}} for s in (1, 2, 3)]
+    runs = [
+        {
+            "seed": s,
+            "selected_layer": 2,
+            "selected_layer_index": 2,
+            "selected_physical_layer": 8,
+            "validation_auroc": 0.8,
+            "validation_auroc_by_layer": [0.55, 0.62, 0.81, 0.74],
+            "test": {"auroc": 0.78, "pr_auc": 0.6, "ece": 0.08},
+        }
+        for s in (1, 2, 3)
+    ]
     result = {
-        "selection_partition": "validation", "test_partition_used_for_selection": False,
-        "n_train": 300, "n_validation": 60, "n_test": 90, "runs": runs,
+        "selection_partition": "validation",
+        "test_partition_used_for_selection": False,
+        "activation_layer_indices": [1, 3, 8, 12],
+        "n_train": 300,
+        "n_validation": 60,
+        "n_test": 90,
+        "runs": runs,
         "test_auroc_mean": 0.78, "test_pr_auc_mean": 0.6,
         "seed_summary": {"test_auroc": {"mean": 0.78, "n_seeds": 3}},
         "baselines": {
@@ -52,8 +66,14 @@ def _probe_results(*, with_curve: bool = True) -> dict:
 
 def _confound_results() -> dict:
     return {
-        "selected_layer": 2, "layer_selected_on": "validation (upstream)",
-        "metadata_availability": {"usable_columns": ["action"], "unavailable_analyses": []},
+        "selected_layer": 2,
+        "selected_layer_index": 2,
+        "selected_physical_layer": 8,
+        "layer_selected_on": "validation (upstream)",
+        "metadata_availability": {
+            "usable_columns": ["action"],
+            "unavailable_analyses": [],
+        },
         "controlled_probe": {"layer": 2, "unadjusted": {"auroc": 0.78},
                              "residualized": {"auroc": 0.63}, "auroc_drop_after_control": 0.15},
         "subsets": {
@@ -214,14 +234,45 @@ def test_manifest_traces_every_figure_to_a_real_artifact(tmp_path):
 
 def test_source_csv_matches_the_plotted_numbers(tmp_path):
     root = _write_artifacts(tmp_path / "out")
-    manifest = build_all_figures(root, only=["learning_curve", "dose_response"])
-    curve = pd.read_csv(manifest["figures"]["learning_curve"]["source_data"])
+    manifest = build_all_figures(
+        root,
+        only=["learning_curve", "dose_response"],
+    )
+
+    curve = pd.read_csv(
+        manifest["figures"]["learning_curve"]["source_data"]
+    )
     assert curve.n_train_groups.tolist() == [10, 30]
     assert curve.test_auroc_mean.tolist() == [0.66, 0.75]
-    dose = pd.read_csv(manifest["figures"]["dose_response"]["source_data"])
-    assert set(dose.condition) == {"positive_steering", "negative_steering"}
+
+    dose = pd.read_csv(
+        manifest["figures"]["dose_response"]["source_data"]
+    )
+    assert set(dose.condition) == {
+        "positive_steering",
+        "negative_steering",
+    }
     assert sorted(dose.strength.unique()) == [1.0, 2.0]
 
+
+def test_layerwise_probe_uses_physical_transformer_layers(tmp_path):
+    root = _write_artifacts(tmp_path / "out")
+
+    manifest = build_all_figures(
+        root,
+        only=["layerwise_probe"],
+    )
+
+    entry = manifest["figures"]["layerwise_probe"]
+    assert entry["status"] == "ok"
+
+    data = pd.read_csv(entry["source_data"])
+
+    assert data["activation_layer_index"].tolist() == [0, 1, 2, 3]
+    assert data["physical_layer"].tolist() == [1, 3, 8, 12]
+
+    assert "physical transformer layer" in entry["caption"]
+    assert "8" in entry["caption"]
 
 def test_figure_context_carries_provenance(tmp_path):
     root = _write_artifacts(tmp_path / "out")
@@ -243,7 +294,11 @@ def test_unknown_figure_name_is_refused(tmp_path):
 def test_confound_figure_names_the_controls_that_did_not_run(tmp_path):
     root = _write_artifacts(tmp_path / "out")
     manifest = build_all_figures(root, only=["confound_subsets"])
-    caption = manifest["figures"]["confound_subsets"]["caption"]
+
+    entry = manifest["figures"]["confound_subsets"]
+    caption = entry["caption"]
+
+    assert "physical transformer layer" in caption
     assert "Controls that could not run" in caption
     assert "equity_matched" in caption
 

@@ -185,53 +185,186 @@ def _skip(name: str, reason: str) -> dict[str, Any]:
 # Probe figures
 # --------------------------------------------------------------------------- #
 
-def figure_layerwise_probe(artifacts: dict[str, Any], context: FigureContext,
-                           figures_dir: Path) -> dict[str, Any]:
-    """Validation AUROC by layer across seeds, with the selected layer marked."""
+def figure_layerwise_probe(
+    artifacts: dict[str, Any],
+    context: FigureContext,
+    figures_dir: Path,
+) -> dict[str, Any]:
+    """Validation AUROC by physical transformer layer across seeds."""
     probe = artifacts.get("probe")
     if not probe:
         return _skip("layerwise_probe", "probe_results.json is absent")
+
     runs = probe.get("runs") or []
     curves = [r.get("validation_auroc_by_layer") for r in runs]
     if not curves or any(c is None for c in curves):
-        return _skip("layerwise_probe", "probe runs do not record validation_auroc_by_layer")
+        return _skip(
+            "layerwise_probe",
+            "probe runs do not record validation_auroc_by_layer",
+        )
+
     matrix = np.asarray(curves, dtype=float)
-    layers = np.arange(matrix.shape[1])
+
+    raw_layer_indices = probe.get("activation_layer_indices")
+    if raw_layer_indices is None:
+        return _skip(
+            "layerwise_probe",
+            "probe_results.json does not record activation_layer_indices, so "
+            "tensor axes cannot be mapped safely to physical transformer layers",
+        )
+
+    physical_layers = np.asarray(
+        [int(layer) for layer in raw_layer_indices],
+        dtype=int,
+    )
+
+    if len(physical_layers) != matrix.shape[1]:
+        return _skip(
+            "layerwise_probe",
+            "activation_layer_indices length does not match the number of "
+            "layerwise validation scores",
+        )
+
+    if len(set(physical_layers.tolist())) != len(physical_layers):
+        return _skip(
+            "layerwise_probe",
+            "activation_layer_indices contains duplicate physical layers",
+        )
+
     mean = matrix.mean(axis=0)
-    spread = matrix.std(axis=0, ddof=1) if len(matrix) > 1 else np.zeros(matrix.shape[1])
-    selected = [int(r["selected_layer"]) for r in runs]
+    spread = (
+        matrix.std(axis=0, ddof=1)
+        if len(matrix) > 1
+        else np.zeros(matrix.shape[1])
+    )
+
+    selected_physical_layers: list[int] = []
+    for run in runs:
+        if "selected_physical_layer" in run:
+            selected_physical_layers.append(
+                int(run["selected_physical_layer"])
+            )
+            continue
+
+        selected_axis = run.get(
+            "selected_layer_index",
+            run.get("selected_layer"),
+        )
+        if selected_axis is None:
+            return _skip(
+                "layerwise_probe",
+                "a probe run does not record its selected layer",
+            )
+
+        selected_axis = int(selected_axis)
+        if not 0 <= selected_axis < len(physical_layers):
+            return _skip(
+                "layerwise_probe",
+                "a probe run selected an activation tensor axis outside the "
+                "recorded activation_layer_indices mapping",
+            )
+
+        selected_physical_layers.append(
+            int(physical_layers[selected_axis])
+        )
 
     fig, ax = plt.subplots(figsize=(7, 4))
-    ax.plot(layers, mean, color=PALETTE[0], marker=MARKERS[0], markersize=5, linewidth=2,
-            label=f"mean validation AUROC ({len(runs)} seeds)")
-    ax.fill_between(layers, mean - spread, mean + spread, color=PALETTE[0], alpha=0.18,
-                    label="+/-1 SD across seeds")
-    modal = max(set(selected), key=selected.count)
-    ax.axvline(modal, color=PALETTE[1], linestyle="--", linewidth=1.5,
-               label=f"selected layer {modal} (modal across seeds)")
-    ax.axhline(0.5, color=INK_SECONDARY, linewidth=1, linestyle=":", label="chance (AUROC 0.5)")
-    ax.set_ylim(0.0, 1.02)
-    _style_axes(ax, xlabel="layer index (decoder block output)", ylabel="validation AUROC")
-    ax.legend(frameon=False, fontsize=8, labelcolor=INK_SECONDARY)
-    _finish(fig, ax, "Layerwise probe performance (validation)",
-            context.subtitle(split="validation", n=probe.get("n_validation")))
+    ax.plot(
+        physical_layers,
+        mean,
+        color=PALETTE[0],
+        marker=MARKERS[0],
+        markersize=5,
+        linewidth=2,
+        label=f"mean validation AUROC ({len(runs)} seeds)",
+    )
+    ax.fill_between(
+        physical_layers,
+        mean - spread,
+        mean + spread,
+        color=PALETTE[0],
+        alpha=0.18,
+        label="+/-1 SD across seeds",
+    )
 
-    data = pd.DataFrame({"layer": layers, "mean_validation_auroc": mean, "sd_across_seeds": spread})
+    modal_physical_layer = max(
+        set(selected_physical_layers),
+        key=selected_physical_layers.count,
+    )
+    ax.axvline(
+        modal_physical_layer,
+        color=PALETTE[1],
+        linestyle="--",
+        linewidth=1.5,
+        label=(
+            f"selected physical layer {modal_physical_layer} "
+            "(modal across seeds)"
+        ),
+    )
+    ax.axhline(
+        0.5,
+        color=INK_SECONDARY,
+        linewidth=1,
+        linestyle=":",
+        label="chance (AUROC 0.5)",
+    )
+    ax.set_ylim(0.0, 1.02)
+    _style_axes(
+        ax,
+        xlabel="physical transformer layer",
+        ylabel="validation AUROC",
+    )
+    ax.legend(
+        frameon=False,
+        fontsize=8,
+        labelcolor=INK_SECONDARY,
+    )
+    _finish(
+        fig,
+        ax,
+        "Layerwise probe performance (validation)",
+        context.subtitle(
+            split="validation",
+            n=probe.get("n_validation"),
+            layer=modal_physical_layer,
+        ),
+    )
+
+    data = pd.DataFrame({
+        "activation_layer_index": np.arange(matrix.shape[1]),
+        "physical_layer": physical_layers,
+        "mean_validation_auroc": mean,
+        "sd_across_seeds": spread,
+    })
+
     for i, run in enumerate(runs):
         data[f"seed_{run['seed']}_validation_auroc"] = matrix[i]
-    return _save(fig, data, "layerwise_probe", figures_dir,
-                 caption=(f"Validation AUROC per layer for {context.model}, {len(runs)} seeds. "
-                          f"Layer selection used the validation partition only; the frozen "
-                          f"selection was evaluated once on test. Shaded band is +/-1 SD across "
-                          f"seeds. Dataset {context.dataset}."),
-                 source=artifacts["present"].get("probe"),
-                 checksum=artifacts["checksums"].get("probe"),
-                 uncertainty="standard deviation across probe-fitting seeds")
 
+    return _save(
+        fig,
+        data,
+        "layerwise_probe",
+        figures_dir,
+        caption=(
+            f"Validation AUROC by physical transformer layer for "
+            f"{context.model}, {len(runs)} seeds. Layer selection used the "
+            f"validation partition only; the frozen selection was evaluated "
+            f"once on test. The modal selected physical transformer layer is "
+            f"{modal_physical_layer}. Shaded band is +/-1 SD across seeds. "
+            f"Dataset {context.dataset}."
+        ),
+        source=artifacts["present"].get("probe"),
+        checksum=artifacts["checksums"].get("probe"),
+        uncertainty="standard deviation across probe-fitting seeds",
+    )
 
-def figure_learning_curve(artifacts: dict[str, Any], context: FigureContext,
-                          figures_dir: Path) -> dict[str, Any]:
+def figure_learning_curve(
+    artifacts: dict[str, Any],
+    context: FigureContext,
+    figures_dir: Path,
+) -> dict[str, Any]:
     """Test AUROC against training-set size in groups, over independent subsamples."""
+
     probe = artifacts.get("probe")
     curve = (probe or {}).get("learning_curve")
     if not curve:
@@ -374,13 +507,23 @@ def figure_confound_subsets(artifacts: dict[str, Any], context: FigureContext,
     ax.set_xlim(0.0, 1.05)
     _style_axes(ax, xlabel="test AUROC within matched subset", ylabel="")
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_SECONDARY, loc="lower left")
-    _finish(fig, ax, "Probe performance under poker confound controls",
-            context.subtitle(split="test", n=None, layer=confound.get("selected_layer")))
+    _finish(
+        fig,
+        ax,
+        "Probe performance under poker confound controls",
+        context.subtitle(
+            split="test",
+            n=None,
+            layer=confound.get("selected_physical_layer"),
+        ),
+    )
 
-    caption = ("Probe AUROC inside each nuisance-matched subset, at the layer selected on "
-               "validation. Matching equalises label counts within every stratum, so a drop "
-               "relative to the unmatched set is the portion of apparent performance that the "
-               "nuisance variable explained.")
+    caption = (
+        "Probe AUROC inside each nuisance-matched subset, at the physical transformer "
+        "layer selected on validation. Matching equalises label counts within every "
+        "stratum, so a drop relative to the unmatched set is the portion of apparent "
+        "performance that the nuisance variable explained."
+    )
     if unavailable:
         caption += " Controls that could not run: " + "; ".join(unavailable)
     return _save(fig, data, "confound_subsets", figures_dir, caption=caption,

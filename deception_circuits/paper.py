@@ -570,12 +570,24 @@ def run_probe_experiment(
             flush=True,
         )
 
-    result = {"selection_partition": "validation", "test_partition_used_for_selection": False,
-              "n_train": len(ytr), "n_validation": len(yva), "n_test": len(yte), "runs": runs,
-              "test_auroc_mean": float(np.mean([r["test"]["auroc"] for r in runs])),
-              "test_pr_auc_mean": float(np.mean([r["test"]["pr_auc"] for r in runs])),
-              "seed_summary": summarize_across_seeds(runs),
-              "baselines": run_baselines(df, manifest, config)}
+    result = {
+        "selection_partition": "validation",
+        "test_partition_used_for_selection": False,
+        "activation_layer_indices": [int(layer) for layer in layer_indices],
+        "n_train": len(ytr),
+        "n_validation": len(yva),
+        "n_test": len(yte),
+        "runs": runs,
+        "test_auroc_mean": float(
+            np.mean([r["test"]["auroc"] for r in runs])
+        ),
+        "test_pr_auc_mean": float(
+            np.mean([r["test"]["pr_auc"] for r in runs])
+        ),
+        "seed_summary": summarize_across_seeds(runs),
+        "baselines": run_baselines(df, manifest, config),
+    }
+
     if config.learning_curve_sizes:
         # The curve reuses the activation tensor axis selected by the main probe
         # loop. The physical transformer layer is carried separately.
