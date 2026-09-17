@@ -19,7 +19,10 @@
 - [x] Calibration (ECE) in the strict metric set, canonical implementation shared with legacy
 - [x] Learning curves over multiple independent group-level subsamples per size
 - [x] Seed-level variability reported alongside grouped bootstrap CIs
-- [ ] Cross-context/model protocol with source-validation-only selection
+- [x] Cross-context/model protocol with source-validation-only selection
+      (`deception_circuits/paper_transfer.py`, `tests/test_transfer.py`; probes are fit on
+      source-train rows, layer selection uses source-validation AUROC only, and target-context
+      held-out test labels never influence model or layer selection)
 - [x] Behavioral endpoint independent of probe score, paired intervention analysis, and quality controls
       (`deception_circuits/paper_causal.py`, `tests/test_causal_suite.py`; **stub-tested only, not yet run on a real model**)
 - [x] Positive/negative steering, true patching, shuffled-label, wrong-layer, and timing controls
@@ -35,7 +38,11 @@
 - [ ] Paper reference/citation cleanup (**paper-only, cannot be done in code**)
 - [x] Full pre-paper audit of activation metadata, causal controls, behavioral endpoints, and figures
       (`deception-paper audit`; fails on any missing required artifact, separates notes from failures)
-- [ ] Cross-context generalization matrix (**the one remaining unimplemented analysis**)
+- [x] Cross-context generalization matrix
+      (`run-transfer` writes `cross_context_results.json`; `figure_cross_scenario` renders only
+      completed artifact-backed source-target cells; the audit checks complete pair coverage,
+      source-validation-only selection, grouped CIs, and physical-layer provenance.
+      **Real cross-context results still require a second real context.**)
 
 Unchecked work requires real dataset/model artifacts or a separate implementation pass;
 it must not be represented as complete in a manuscript.

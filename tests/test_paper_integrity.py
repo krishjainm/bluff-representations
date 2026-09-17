@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 
 import pandas as pd
@@ -9,9 +10,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from _stubs import StubHiddenStateProvider
 
-from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
-                                      load_activations, make_split_manifest, render_predecision_prompt,
-                                      run_probe_experiment, validate_dataset)
+from deception_circuits.paper import (
+    PaperConfig,
+    ResearchIntegrityError,
+    audit_run,
+    load_activations,
+    make_split_manifest,
+    render_predecision_prompt,
+    run_probe_experiment,
+    validate_dataset,
+)
 from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
 from deception_circuits.causal_generation import CausalLMInterventionRunner
 
@@ -99,3 +107,91 @@ def test_patching_replaces_and_prefill_policy_runs_once():
     second = hook(None, None, torch.zeros(1, 1, 3))
     assert torch.equal(first[0, -1], patch)
     assert torch.equal(second, torch.zeros(1, 1, 3))
+def test_global_audit_requires_transfer_for_multicontext_dataset(tmp_path):
+    rows = []
+
+    for context in ("poker", "negotiation"):
+        for group in range(20):
+            for label in (0, 1):
+                rows.append({
+                    "sample_id": f"{context}-{group}-{label}",
+                    "base_item_id": f"{context}-{group}",
+                    "split_group_id": f"{context}-{group}",
+                    "statement": (
+                        f"{context} example {group} variant {label}"
+                    ),
+                    "response": "response",
+                    "label": label,
+                    "scenario": context,
+                })
+
+    csv = tmp_path / "dataset.csv"
+    pd.DataFrame(rows).to_csv(csv, index=False)
+    df = validate_dataset(csv)
+
+    activation_dir = tmp_path / "activations"
+
+    run_extraction(
+        df,
+        ExtractionSpec(
+            subject_model=STUB_MODEL,
+            prompt_template_id="poker_action_v1",
+        ),
+        activation_dir,
+        StubHiddenStateProvider(),
+    )
+
+    config = _config(
+        csv,
+        activation_dir,
+        tmp_path,
+        nuisance_columns=(),
+        learning_curve_sizes=(),
+        intervention_strengths=(),
+        sae_config={},
+    )
+
+    manifest = make_split_manifest(df, config)
+
+    out = Path(config.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    (out / "split_manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (out / "resolved_config.yaml").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+    (out / "run_metadata.json").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+
+    probe_result = run_probe_experiment(
+        df,
+        load_activations(
+            df,
+            activation_dir,
+            config,
+        ),
+        manifest,
+        config,
+    )
+
+    (out / "probe_results.json").write_text(
+        json.dumps(probe_result, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    failures = audit_run(
+        out,
+        df,
+        config,
+    )
+
+    assert any(
+        "cross_context_results.json is missing" in failure
+        for failure in failures
+    )

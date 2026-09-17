@@ -54,12 +54,12 @@ SURFACE = "#fcfcfb"
 ARTIFACTS = {
     "probe": "probe_results.json",
     "confound": "confound_results.json",
+    "transfer": "cross_context_results.json",
     "causal": "causal_results.json",
     "sae": "sae_results.json",
     "split": "split_manifest.json",
     "metadata": "run_metadata.json",
 }
-
 
 @dataclass(frozen=True)
 class FigureContext:
@@ -532,14 +532,213 @@ def figure_confound_subsets(artifacts: dict[str, Any], context: FigureContext,
                  uncertainty="grouped bootstrap 95% percentile CI")
 
 
-def figure_cross_scenario(artifacts: dict[str, Any], context: FigureContext,
-                          figures_dir: Path) -> dict[str, Any]:
-    """Cross-context generalization matrix; not yet produced by any stage."""
-    return _skip("cross_scenario",
-                 "no cross-scenario transfer artifact exists. The generalization matrix "
-                 "(train on one context, evaluate on a held-out context, selecting only on "
-                 "source validation) is not implemented, so no figure can be drawn.")
+def figure_cross_scenario(
+    artifacts: dict[str, Any],
+    context: FigureContext,
+    figures_dir: Path,
+) -> dict[str, Any]:
+    """Cross-context transfer AUROC with source-only layer selection."""
+    transfer = artifacts.get("transfer")
 
+    if not transfer:
+        return _skip(
+            "cross_scenario",
+            "cross_context_results.json is absent (run run-transfer)",
+        )
+
+    if transfer.get("status") != "ok":
+        return _skip(
+            "cross_scenario",
+            transfer.get(
+                "reason",
+                "cross-context transfer did not complete",
+            ),
+        )
+
+    cells = [
+        cell
+        for cell in transfer.get("cells", [])
+        if cell.get("status") == "ok"
+    ]
+
+    if not cells:
+        return _skip(
+            "cross_scenario",
+            "cross-context transfer produced no completed source-target cells",
+        )
+
+    contexts = [str(value) for value in transfer.get("contexts", [])]
+    if len(contexts) < 2:
+        return _skip(
+            "cross_scenario",
+            "cross-context transfer requires at least two contexts",
+        )
+
+    context_to_index = {
+        name: index
+        for index, name in enumerate(contexts)
+    }
+
+    matrix = np.full(
+        (len(contexts), len(contexts)),
+        np.nan,
+        dtype=float,
+    )
+
+    rows: list[dict[str, Any]] = []
+
+    for cell in cells:
+        source = str(cell["source_context"])
+        target = str(cell["target_context"])
+
+        if source not in context_to_index or target not in context_to_index:
+            return _skip(
+                "cross_scenario",
+                "a completed transfer cell references a context absent from "
+                "the artifact context list",
+            )
+
+        target_metrics = cell.get("target_test") or {}
+        auroc = target_metrics.get("auroc")
+
+        if auroc is None:
+            return _skip(
+                "cross_scenario",
+                "a completed transfer cell is missing target-test AUROC",
+            )
+
+        source_index = context_to_index[source]
+        target_index = context_to_index[target]
+        matrix[source_index, target_index] = float(auroc)
+
+        interval = cell.get("target_test_auroc_grouped_ci") or {}
+
+        rows.append({
+            "source_context": source,
+            "target_context": target,
+            "selected_layer_index": cell.get("selected_layer_index"),
+            "selected_physical_layer": cell.get(
+                "selected_physical_layer"
+            ),
+            "source_validation_auroc": cell.get(
+                "source_validation_auroc"
+            ),
+            "target_test_auroc": float(auroc),
+            "target_test_ci_lower": interval.get("lower"),
+            "target_test_ci_upper": interval.get("upper"),
+            "n_source_train": cell.get("n_source_train"),
+            "n_source_validation": cell.get("n_source_validation"),
+            "n_target_test": cell.get("n_target_test"),
+        })
+
+    data = pd.DataFrame(rows).sort_values(
+        ["source_context", "target_context"]
+    ).reset_index(drop=True)
+
+    masked = np.ma.masked_invalid(matrix)
+
+    fig, ax = plt.subplots(
+        figsize=(
+            max(6.0, 1.2 * len(contexts) + 2.5),
+            max(5.0, 1.0 * len(contexts) + 2.5),
+        )
+    )
+
+    image = ax.imshow(
+        masked,
+        vmin=0.0,
+        vmax=1.0,
+        cmap="viridis",
+        aspect="auto",
+    )
+
+    ax.set_xticks(np.arange(len(contexts)))
+    ax.set_yticks(np.arange(len(contexts)))
+    ax.set_xticklabels(contexts, rotation=30, ha="right")
+    ax.set_yticklabels(contexts)
+
+    for source_index in range(len(contexts)):
+        for target_index in range(len(contexts)):
+            value = matrix[source_index, target_index]
+
+            if np.isfinite(value):
+                ax.text(
+                    target_index,
+                    source_index,
+                    f"{value:.3f}",
+                    ha="center",
+                    va="center",
+                    fontsize=9,
+                )
+            elif source_index == target_index:
+                ax.text(
+                    target_index,
+                    source_index,
+                    "within\ncontext",
+                    ha="center",
+                    va="center",
+                    fontsize=8,
+                    color=INK_SECONDARY,
+                )
+
+    ax.set_xlabel(
+        "held-out target context",
+        color=INK_SECONDARY,
+    )
+    ax.set_ylabel(
+        "source context used for training and validation",
+        color=INK_SECONDARY,
+    )
+
+    ax.tick_params(
+        colors=INK_SECONDARY,
+        labelsize=9,
+    )
+
+    colorbar = fig.colorbar(
+        image,
+        ax=ax,
+        fraction=0.046,
+        pad=0.04,
+    )
+    colorbar.set_label(
+        "target-test AUROC",
+        color=INK_SECONDARY,
+    )
+    colorbar.ax.tick_params(
+        colors=INK_SECONDARY,
+        labelsize=8,
+    )
+
+    _finish(
+        fig,
+        ax,
+        "Cross-context probe generalization",
+        context.subtitle(
+            split="held-out target test",
+            n=None,
+        ),
+    )
+
+    return _save(
+        fig,
+        data,
+        "cross_scenario",
+        figures_dir,
+        caption=(
+            "Cross-context test AUROC after fitting probes on the source "
+            "context training partition and selecting the activation layer "
+            "using source-context validation only. Each off-diagonal cell "
+            "evaluates the frozen source probe on a different context from "
+            "the held-out global test partition. Target-test labels are never "
+            "used for model or layer selection."
+        ),
+        source=artifacts["present"].get("transfer"),
+        checksum=artifacts["checksums"].get("transfer"),
+        uncertainty=(
+            "grouped bootstrap 95% percentile CI recorded in the source CSV"
+        ),
+    )
 
 # --------------------------------------------------------------------------- #
 # Causal figures

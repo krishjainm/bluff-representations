@@ -85,6 +85,59 @@ def _confound_results() -> dict:
         "unavailable_analyses": ["equity_matched"],
     }
 
+def _transfer_results() -> dict:
+    return {
+        "status": "ok",
+        "context_column": "scenario",
+        "contexts": ["negotiation", "poker"],
+        "activation_layer_indices": [1, 3, 8, 12],
+        "selection_partition": "source validation only",
+        "target_test_used_for_selection": False,
+        "cells": [
+            {
+                "source_context": "negotiation",
+                "target_context": "poker",
+                "status": "ok",
+                "selected_layer_index": 2,
+                "selected_physical_layer": 8,
+                "source_validation_auroc": 0.82,
+                "source_validation_auroc_by_layer": [0.55, 0.64, 0.82, 0.71],
+                "n_source_train": 120,
+                "n_source_validation": 30,
+                "n_target_test": 45,
+                "target_test": {
+                    "auroc": 0.73,
+                    "pr_auc": 0.61,
+                    "ece": 0.09,
+                },
+                "target_test_auroc_grouped_ci": {
+                    "lower": 0.64,
+                    "upper": 0.81,
+                },
+            },
+            {
+                "source_context": "poker",
+                "target_context": "negotiation",
+                "status": "ok",
+                "selected_layer_index": 1,
+                "selected_physical_layer": 3,
+                "source_validation_auroc": 0.79,
+                "source_validation_auroc_by_layer": [0.58, 0.79, 0.72, 0.69],
+                "n_source_train": 120,
+                "n_source_validation": 30,
+                "n_target_test": 45,
+                "target_test": {
+                    "auroc": 0.68,
+                    "pr_auc": 0.57,
+                    "ece": 0.11,
+                },
+                "target_test_auroc_grouped_ci": {
+                    "lower": 0.59,
+                    "upper": 0.77,
+                },
+            },
+        ],
+    }
 
 def _causal_results() -> dict:
     def effect(mean):
@@ -147,6 +200,7 @@ def _write_artifacts(root: Path, **which) -> Path:
     payloads = {
         "probe": ("probe_results.json", _probe_results),
         "confound": ("confound_results.json", _confound_results),
+        "transfer": ("cross_context_results.json", _transfer_results),
         "causal": ("causal_results.json", _causal_results),
         "sae": ("sae_results.json", _sae_results),
     }
@@ -175,10 +229,16 @@ def test_missing_output_directory_is_refused(tmp_path):
     with pytest.raises(FileNotFoundError):
         build_all_figures(tmp_path / "nope")
 
-
 def test_every_figure_reports_a_reason_when_its_artifact_is_absent(tmp_path):
-    root = _write_artifacts(tmp_path / "out", probe=False, confound=False,
-                            causal=False, sae=False)
+    root = _write_artifacts(
+        tmp_path / "out",
+        probe=False,
+        confound=False,
+        transfer=False,
+        causal=False,
+        sae=False,
+    )
+
     manifest = build_all_figures(root)
     assert manifest["n_generated"] == 0
     assert manifest["n_not_run"] == len(FIGURE_BUILDERS)
@@ -188,13 +248,26 @@ def test_every_figure_reports_a_reason_when_its_artifact_is_absent(tmp_path):
     assert not list(Path(manifest["figures_dir"]).glob("*.png"))
 
 
-def test_cross_scenario_is_always_reported_as_not_implemented(tmp_path):
+def test_cross_scenario_uses_real_transfer_artifact(tmp_path):
     root = _write_artifacts(tmp_path / "out")
-    manifest = build_all_figures(root)
-    entry = manifest["figures"]["cross_scenario"]
-    assert entry["status"] == "not_run"
-    assert "not implemented" in entry["reason"]
 
+    manifest = build_all_figures(
+        root,
+        only=["cross_scenario"],
+    )
+
+    entry = manifest["figures"]["cross_scenario"]
+    assert entry["status"] == "ok"
+
+    data = pd.read_csv(entry["source_data"])
+
+    assert len(data) == 2
+    assert set(data["source_context"]) == {"poker", "negotiation"}
+    assert set(data["target_context"]) == {"poker", "negotiation"}
+    assert sorted(data["target_test_auroc"].tolist()) == [0.68, 0.73]
+    assert entry["generated_from"].endswith(
+        "cross_context_results.json"
+    )
 
 def test_learning_curve_is_skipped_when_unconfigured(tmp_path):
     root = tmp_path / "out"
@@ -210,8 +283,7 @@ def test_learning_curve_is_skipped_when_unconfigured(tmp_path):
 def test_all_available_figures_are_generated_with_source_data(tmp_path):
     root = _write_artifacts(tmp_path / "out")
     manifest = build_all_figures(root)
-    # Everything except the unimplemented cross-scenario matrix.
-    assert manifest["n_generated"] == len(FIGURE_BUILDERS) - 1
+    assert manifest["n_generated"] == len(FIGURE_BUILDERS)
     for name, entry in manifest["figures"].items():
         if entry["status"] != "ok":
             continue

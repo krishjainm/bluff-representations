@@ -848,7 +848,42 @@ def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: Pa
         if "seed_summary" not in result:
             failures.append("seed-level variability summary is missing")
         if config is not None and config.learning_curve_sizes and "learning_curve" not in result:
-            failures.append("learning_curve_sizes is configured but no learning curve was produced")
+            failures.append(
+                "learning_curve_sizes is configured but no learning curve was produced"
+            )
+
+        if df is not None:
+            from .paper_transfer import (
+                audit_cross_context_transfer,
+                available_contexts,
+            )
+
+            contexts = available_contexts(df)
+            transfer_path = root / "cross_context_results.json"
+
+            if len(contexts) >= 2:
+                if not transfer_path.is_file():
+                    failures.append(
+                        "dataset contains multiple contexts but "
+                        "cross_context_results.json is missing; run run-transfer"
+                    )
+                else:
+                    transfer_result = json.loads(
+                        transfer_path.read_text(encoding="utf-8")
+                    )
+                    failures.extend(
+                        audit_cross_context_transfer(transfer_result)
+                    )
+            elif transfer_path.is_file():
+                # Even when the current dataset has only one usable context,
+                # any transfer artifact that exists must still be internally valid.
+                transfer_result = json.loads(
+                    transfer_path.read_text(encoding="utf-8")
+                )
+                failures.extend(
+                    audit_cross_context_transfer(transfer_result)
+                )
+
         if config is not None and config.nuisance_columns:
             confounds = root / "confound_results.json"
             if not confounds.is_file():
