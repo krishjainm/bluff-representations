@@ -577,12 +577,20 @@ def run_probe_experiment(
               "seed_summary": summarize_across_seeds(runs),
               "baselines": run_baselines(df, manifest, config)}
     if config.learning_curve_sizes:
-        # The curve reuses the layer the main loop selected on validation, so it
-        # costs one fit per draw rather than one per layer per draw.
-        modal = result["seed_summary"]["selected_layer"]["modal"]
+        # The curve reuses the activation tensor axis selected by the main probe
+        # loop. The physical transformer layer is carried separately.
+        modal_layer_index = result["seed_summary"]["selected_layer_index"]["modal"]
         result["learning_curve"] = run_learning_curve(
-            df, activations, manifest, config, layer=modal,
-            layer_source=f"modal validation-selected layer across {config.n_seeds} seeds")
+            df,
+            activations,
+            manifest,
+            config,
+            layer=modal_layer_index,
+            layer_indices=layer_indices,
+            layer_source=(
+                f"modal validation-selected layer across {config.n_seeds} seeds"
+            ),
+        )
     return result
 
 
@@ -647,8 +655,14 @@ def summarize_across_seeds(runs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def run_learning_curve(
-    df: pd.DataFrame, activations: np.ndarray, manifest: dict[str, Any], config: PaperConfig,
-    *, layer: int | None = None, layer_source: str = "unspecified",
+    df: pd.DataFrame,
+    activations: np.ndarray,
+    manifest: dict[str, Any],
+    config: PaperConfig,
+    *,
+    layer: int | None = None,
+    layer_indices: list[int] | None = None,
+    layer_source: str = "unspecified",
 ) -> dict[str, Any]:
     """Sample-size curve using multiple *independent* training subsamples per size.
 
@@ -665,6 +679,29 @@ def run_learning_curve(
     question -- on a 32-layer model that is 800 fits instead of 25. The policy
     and the layer's provenance are recorded either way.
     """
+    if layer_indices is None:
+        layer_indices = list(range(activations.shape[1]))
+
+    layer_indices = [int(value) for value in layer_indices]
+
+    if len(layer_indices) != activations.shape[1]:
+        raise ResearchIntegrityError(
+            "Physical layer mapping length must match the activation tensor layer dimension."
+        )
+
+    if len(set(layer_indices)) != len(layer_indices) or any(
+        value < 0 for value in layer_indices
+    ):
+        raise ResearchIntegrityError(
+            "Physical layer mapping must contain unique, non-negative transformer layers."
+        )
+
+    if layer is not None and not 0 <= int(layer) < activations.shape[1]:
+        raise ResearchIntegrityError(
+            f"Learning-curve layer index {layer} is outside the stored activation "
+            f"tensor with {activations.shape[1]} layer axes."
+        )
+
     index = {sid: i for i, sid in enumerate(df.sample_id)}
     group_col = manifest.get("group_column", "base_item_id")
     labels = df.label.to_numpy(int)
@@ -707,15 +744,28 @@ def run_learning_curve(
                 val_scores = [float("nan")] * activations.shape[1]
                 val_scores[selected] = _metrics(
                     yva, model.predict_proba(xva[:, selected])[:, 1])["auroc"]
+            selected_physical_layer = layer_indices[selected]
+
             replicates.append({
-                "replicate": replicate, "n_train_rows": int(len(pos)),
-                "n_train_groups": int(len(chosen)), "selected_layer": selected,
+                "replicate": replicate,
+                "n_train_rows": int(len(pos)),
+                "n_train_groups": int(len(chosen)),
+                # Compatibility alias: this remains the activation tensor axis.
+                "selected_layer": selected,
+                "selected_layer_index": selected,
+                "selected_physical_layer": selected_physical_layer,
                 # Identifies the draw without inlining the id list, so the curve
                 # stays auditable and reproducible without bloating the JSON.
                 "train_groups_sha256": hashlib.sha256(
-                    "|".join(sorted(map(str, chosen))).encode("utf-8")).hexdigest()[:16],
+                    "|".join(sorted(map(str, chosen))).encode("utf-8")
+                ).hexdigest()[:16],
                 "validation_auroc": float(val_scores[selected]),
-                "test_auroc": float(_metrics(yte, model.predict_proba(xte[:, selected])[:, 1])["auroc"]),
+                "test_auroc": float(
+                    _metrics(
+                        yte,
+                        model.predict_proba(xte[:, selected])[:, 1],
+                    )["auroc"]
+                ),
             })
         if not replicates:
             points.append({"n_train_groups": size, "status": "not_run",
@@ -732,10 +782,23 @@ def run_learning_curve(
             "test_auroc_range": [float(aurocs.min()), float(aurocs.max())],
             "replicates": replicates,
         })
-    return {"subsample_unit": "group", "requested_subsamples_per_size": config.learning_curve_subsamples,
-            "layer_policy": "fixed" if layer is not None else "reselected_per_subsample",
-            "layer": None if layer is None else int(layer), "layer_source": layer_source,
-            "n_available_train_groups": int(len(unique_groups)), "points": points}
+    fixed_layer_index = None if layer is None else int(layer)
+    fixed_physical_layer = (
+        None if fixed_layer_index is None else layer_indices[fixed_layer_index]
+    )
+
+    return {
+        "subsample_unit": "group",
+        "requested_subsamples_per_size": config.learning_curve_subsamples,
+        "layer_policy": "fixed" if layer is not None else "reselected_per_subsample",
+        # Compatibility alias: this remains the activation tensor axis.
+        "layer": fixed_layer_index,
+        "layer_index": fixed_layer_index,
+        "physical_layer": fixed_physical_layer,
+        "layer_source": layer_source,
+        "n_available_train_groups": int(len(unique_groups)),
+        "points": points,
+    }
 
 
 def write_run_metadata(config: PaperConfig, output_dir: Path) -> None:

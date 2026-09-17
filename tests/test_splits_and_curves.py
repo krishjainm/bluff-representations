@@ -253,6 +253,62 @@ def test_probe_result_distinguishes_tensor_axis_from_physical_layer(tmp_path):
         assert run["selected_physical_layer"] == 3
         assert run["selected_layer"] == 1
 
+def test_learning_curve_reports_physical_layer_for_subset_extraction(tmp_path):
+    """Learning curves must distinguish stored tensor axes from model layers."""
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    activation_dir = tmp_path / "activations"
+
+    run_extraction(
+        df,
+        ExtractionSpec(
+            subject_model=STUB_MODEL,
+            prompt_template_id="poker_action_v1",
+            layer_indices=(1, 3),
+        ),
+        activation_dir,
+        StubHiddenStateProvider(),
+    )
+
+    layer_indices = load_activation_layer_indices(activation_dir)
+    assert layer_indices == [1, 3]
+
+    # Tensor axis 1 contains the decodable signal, but that axis represents
+    # physical transformer layer 3.
+    activations = np.zeros((len(df), 2, 3), dtype=np.float32)
+    activations[:, 1, 0] = df["label"].to_numpy(dtype=np.float32)
+
+    config = _config(
+        csv,
+        activation_dir,
+        tmp_path,
+        learning_curve_sizes=[6],
+        learning_curve_subsamples=2,
+    )
+    manifest = make_split_manifest(df, config)
+
+    result = run_probe_experiment(
+        df,
+        activations,
+        manifest,
+        config,
+        layer_indices=layer_indices,
+    )
+
+    curve = result["learning_curve"]
+
+    assert curve["layer"] == 1
+    assert curve["layer_index"] == 1
+    assert curve["physical_layer"] == 3
+
+    for point in curve["points"]:
+        if point.get("status") != "ok":
+            continue
+
+        for replicate in point["replicates"]:
+            assert replicate["selected_layer"] == 1
+            assert replicate["selected_layer_index"] == 1
+            assert replicate["selected_physical_layer"] == 3
 
 # --- learning curves
 
