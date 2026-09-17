@@ -317,11 +317,48 @@ def assert_split_integrity(df: pd.DataFrame, manifest: dict[str, Any]) -> None:
 
 
 def save_manifest(manifest: dict[str, Any], path: str | Path) -> None:
-    path = Path(path); path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def load_split_manifest(
+    path: str | Path,
+    df: pd.DataFrame,
+    config: PaperConfig,
+) -> dict[str, Any]:
+    """Load a split manifest only if it belongs to the current dataset."""
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Split manifest is missing: {path}")
+
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+
+    recorded_hash = manifest.get("dataset_sha256")
+    if not recorded_hash:
+        raise ResearchIntegrityError(
+            "Split manifest is missing dataset_sha256; recreate the split manifest "
+            "before running research analyses."
+        )
+
+    current_hash = _sha256(Path(config.dataset_path))
+    if recorded_hash != current_hash:
+        raise ResearchIntegrityError(
+            "Split manifest dataset SHA-256 does not match the current dataset. "
+            f"manifest={recorded_hash}, current={current_hash}. "
+            "The dataset changed after the split was created; recreate the split "
+            "manifest before continuing."
+        )
+
+    assert_split_integrity(df, manifest)
+    return manifest
 
 
 def binary_ece(probabilities: np.ndarray, labels: np.ndarray, n_bins: int = 15) -> float:
+
     """Equal-width expected calibration error for binary labels.
 
     This is the canonical implementation for the strict path;
@@ -329,6 +366,7 @@ def binary_ece(probabilities: np.ndarray, labels: np.ndarray, n_bins: int = 15) 
     Unlike the legacy version it raises on empty input rather than returning a
     calibrated-looking 0.0.
     """
+
     probabilities = np.asarray(probabilities, dtype=np.float64).ravel()
     labels = np.asarray(labels, dtype=np.float64).ravel()
     if len(probabilities) == 0:

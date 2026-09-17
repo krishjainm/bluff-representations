@@ -12,7 +12,8 @@ from _stubs import StubHiddenStateProvider
 
 from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
                                       assert_partition_label_availability, assert_split_integrity,
-                                      load_activations, make_split_manifest, run_probe_experiment,
+                                      load_activations, load_split_manifest, make_split_manifest,
+                                      run_probe_experiment, save_manifest,
                                       summarize_across_seeds, summarize_partitions,
                                       validate_dataset)
 from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
@@ -89,6 +90,44 @@ def test_split_is_deterministic_for_a_given_seed(tmp_path):
     other = make_split_manifest(df, _config(csv, tmp_path / "a", tmp_path, seed=99))
     assert other["test"] != make_split_manifest(df, config)["test"]
 
+def test_load_split_manifest_accepts_the_dataset_it_was_created_from(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    config = _config(csv, tmp_path / "a", tmp_path)
+
+    manifest = make_split_manifest(df, config)
+    path = tmp_path / "split_manifest.json"
+    save_manifest(manifest, path)
+
+    loaded = load_split_manifest(path, df, config)
+
+    assert loaded["dataset_sha256"] == manifest["dataset_sha256"]
+    assert loaded["train"] == manifest["train"]
+    assert loaded["validation"] == manifest["validation"]
+    assert loaded["test"] == manifest["test"]
+
+
+def test_load_split_manifest_rejects_dataset_changed_after_split(tmp_path):
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+    config = _config(csv, tmp_path / "a", tmp_path)
+
+    manifest = make_split_manifest(df, config)
+    path = tmp_path / "split_manifest.json"
+    save_manifest(manifest, path)
+
+    changed = pd.read_csv(csv)
+    changed.loc[0, "statement"] = (
+        str(changed.loc[0, "statement"]) + " CHANGED_AFTER_SPLIT"
+    )
+    changed.to_csv(csv, index=False)
+    changed_df = validate_dataset(csv)
+
+    with pytest.raises(
+        ResearchIntegrityError,
+        match="dataset SHA-256 does not match",
+    ):
+        load_split_manifest(path, changed_df, config)
 
 def test_grouped_random_strategy_remains_available(tmp_path):
     csv = _dataset(tmp_path)

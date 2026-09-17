@@ -8,8 +8,9 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .paper import (PaperConfig, audit_notes, audit_run, load_activations, make_split_manifest,
-                    run_probe_experiment, save_manifest, validate_dataset, write_run_metadata)
+from .paper import (PaperConfig, audit_notes, audit_run, load_activations,
+                    load_split_manifest, make_split_manifest, run_probe_experiment,
+                    save_manifest, validate_dataset, write_run_metadata)
 from .paper_extraction import ExtractionSpec, run_extraction
 
 COMMANDS = ("validate-data", "make-splits", "collect-activations", "train-probes",
@@ -99,7 +100,7 @@ def main() -> None:
         path = _manifest_path(config, out)
         if not path.is_file():
             raise FileNotFoundError("Create a split manifest before analyzing confounds")
-        split_manifest = json.loads(path.read_text())
+        split_manifest = load_split_manifest(path, df, config)
         probe_results = out / "probe_results.json"
         if not probe_results.is_file():
             raise FileNotFoundError(
@@ -130,7 +131,7 @@ def main() -> None:
         path = _manifest_path(config, out)
         if not path.is_file():
             raise FileNotFoundError("Create a split manifest before running baselines")
-        split_manifest = json.loads(path.read_text())
+        split_manifest = load_split_manifest(path, df, config)
         result = {
             "note": "no activations and no model are involved in any number here",
             "n_train": len(split_manifest["train"]), "n_test": len(split_manifest["test"]),
@@ -170,7 +171,7 @@ def main() -> None:
             raise SystemExit(
                 "Set sae_config in the config. n_features must be explicit: there is no "
                 "'same as input' default, because that is not an overcomplete dictionary.")
-        split_manifest = json.loads(path.read_text())
+        split_manifest = load_split_manifest(path, df, config)
         if probe_results.is_file():
             layers = [int(r["selected_layer"]) for r in json.loads(probe_results.read_text())["runs"]]
             layer = max(set(layers), key=layers.count)
@@ -214,8 +215,9 @@ def main() -> None:
         if not config.intervention_strengths:
             raise SystemExit("Set intervention_strengths in the config (a dose-response grid).")
 
-        split_manifest = json.loads(path.read_text())
+        split_manifest = load_split_manifest(path, df, config)
         runs = json.loads(probe_results.read_text())["runs"]
+
         layers = [int(r["selected_layer"]) for r in runs]
         layer = int(config.intervention_layer) if config.intervention_layer is not None \
             else max(set(layers), key=layers.count)
@@ -279,8 +281,9 @@ def main() -> None:
         path = _manifest_path(config, out)
         if not path.is_file():
             raise FileNotFoundError("Create a split manifest before training probes")
-        split_manifest = json.loads(path.read_text())
+        split_manifest = load_split_manifest(path, df, config)
         activations = load_activations(df, config.activation_dir, config)
+
         (out / "resolved_config.yaml").write_text(yaml.safe_dump(config.__dict__, sort_keys=True))
         write_run_metadata(config, out)
         result = run_probe_experiment(df, activations, split_manifest, config)
