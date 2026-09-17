@@ -7,6 +7,7 @@ loaded and no API is contacted.
 """
 from pathlib import Path
 import sys
+import types
 
 import numpy as np
 import pandas as pd
@@ -533,3 +534,58 @@ def test_bad_template_is_refused():
     with pytest.raises(ResearchIntegrityError, match=r"must contain \{statement\}"):
         run_causal_suite(runner, df.head(4), directions, ENDPOINT, layer=READOUT_LAYER,
                          strengths=[1.0], prompt_template="no placeholder")
+
+def test_transformers_runner_honors_model_tokenizer_revision_and_dtype(monkeypatch):
+    """Causal runs must reproduce extraction model/tokenizer provenance exactly."""
+    import torch
+    from deception_circuits.paper_causal import TransformersInterventionRunner
+
+    calls = {}
+
+    class FakeTokenizer:
+        @classmethod
+        def from_pretrained(cls, model_name, revision=None):
+            calls["tokenizer_model"] = model_name
+            calls["tokenizer_revision"] = revision
+            return cls()
+
+    class FakeModel:
+        @classmethod
+        def from_pretrained(cls, model_name, revision=None, dtype=None):
+            calls["model_name"] = model_name
+            calls["model_revision"] = revision
+            calls["dtype"] = dtype
+            return cls()
+
+        def to(self, device):
+            calls["device"] = device
+            return self
+
+        def eval(self):
+            calls["eval"] = True
+            return self
+
+    fake_transformers = types.ModuleType("transformers")
+    fake_transformers.AutoTokenizer = FakeTokenizer
+    fake_transformers.AutoModelForCausalLM = FakeModel
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    runner = TransformersInterventionRunner(
+        "fake/model",
+        device="cpu",
+        revision="model-sha",
+        tokenizer_revision="tokenizer-sha",
+        torch_dtype="bfloat16",
+    )
+
+    assert calls["model_name"] == "fake/model"
+    assert calls["model_revision"] == "model-sha"
+    assert calls["tokenizer_model"] == "fake/model"
+    assert calls["tokenizer_revision"] == "tokenizer-sha"
+    assert calls["dtype"] is torch.bfloat16
+    assert calls["device"] == "cpu"
+    assert calls["eval"] is True
+
+    assert runner.model_revision == "model-sha"
+    assert runner.tokenizer_revision == "tokenizer-sha"
+    assert runner.torch_dtype == "bfloat16"

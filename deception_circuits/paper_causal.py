@@ -610,8 +610,16 @@ class TransformersInterventionRunner:
     whose first token collides are rejected rather than silently conflated.
     """
 
-    def __init__(self, model_name: str, *, device: str = "cpu", site: str = "block",
-                 revision: str | None = None, torch_dtype: str = "float32") -> None:
+    def __init__(
+        self,
+        model_name: str,
+        *,
+        device: str = "cpu",
+        site: str = "block",
+        revision: str | None = None,
+        tokenizer_revision: str | None = None,
+        torch_dtype: str = "float32",
+    ) -> None:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer  # local: heavy
 
@@ -619,9 +627,25 @@ class TransformersInterventionRunner:
         self.model_name = model_name
         self.device = device
         self.site = site
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name, revision=revision)
+        self.model_revision = revision
+        self.tokenizer_revision = tokenizer_revision or revision
+        self.torch_dtype = torch_dtype
+
+        dtype = getattr(torch, torch_dtype, None)
+        if dtype is None:
+            raise ResearchIntegrityError(
+                f"Unknown torch_dtype {torch_dtype!r}; refusing to silently change precision"
+            )
+
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            revision=self.tokenizer_revision,
+        )
         self.model = AutoModelForCausalLM.from_pretrained(
-            model_name, revision=revision, dtype=getattr(torch, torch_dtype, torch.float32))
+            model_name,
+            revision=self.model_revision,
+            dtype=dtype,
+        )
         self.model.to(device)
         self.model.eval()
 

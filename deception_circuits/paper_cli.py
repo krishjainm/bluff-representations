@@ -245,9 +245,14 @@ def main() -> None:
         for name in directions:
             if name.startswith("nuisance_"):
                 conditions = conditions + (nuisance_condition(name),)
-        runner = TransformersInterventionRunner(
-            config.subject_model, device=args.device,
-            site=config.intervention_site or "block", revision=config.model_revision)
+                runner = TransformersInterventionRunner(
+            config.subject_model,
+            device=args.device,
+            site=config.intervention_site or "block",
+            revision=config.model_revision,
+            tokenizer_revision=config.tokenizer_revision,
+            torch_dtype=config.torch_dtype,
+        )
         # Same template the activations were extracted with, so the intervention
         # lands at the position the direction was fitted for.
         spec = ExtractionSpec.from_paper_config(config)
