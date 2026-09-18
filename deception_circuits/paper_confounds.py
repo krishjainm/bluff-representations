@@ -170,30 +170,146 @@ def bluff_vs_value_subset(
 
 
 def _stratum_keys(
-    df: pd.DataFrame, exact_columns: Sequence[str], binned_columns: Sequence[str], n_bins: int
+    df: pd.DataFrame,
+    exact_columns: Sequence[str],
+    binned_columns: Sequence[str],
+    n_bins: int,
+    *,
+    bin_edges: dict[str, Sequence[float]] | None = None,
 ) -> pd.Series:
     parts: list[pd.Series] = []
+
     for column in exact_columns:
         if column not in df.columns:
-            raise ResearchIntegrityError(f"Matching column {column!r} is absent from the dataset")
-        values = df[column].map(_normalize_action) if column == "action" else df[column].fillna(MISSING).astype(str)
-        parts.append(column + "=" + values.astype(str))
+            raise ResearchIntegrityError(
+                f"Matching column {column!r} is absent from the dataset"
+            )
+
+        values = (
+            df[column].map(_normalize_action)
+            if column == "action"
+            else df[column].fillna(MISSING).astype(str)
+        )
+
+        parts.append(
+            column + "=" + values.astype(str)
+        )
+
     for column in binned_columns:
         if column not in df.columns:
-            raise ResearchIntegrityError(f"Matching column {column!r} is absent from the dataset")
-        numeric = pd.to_numeric(df[column], errors="coerce")
+            raise ResearchIntegrityError(
+                f"Matching column {column!r} is absent from the dataset"
+            )
+
+        numeric = pd.to_numeric(
+            df[column],
+            errors="coerce",
+        )
+
         if numeric.isna().all():
-            raise ResearchIntegrityError(f"Binned matching column {column!r} has no numeric values")
-        # Quantile bins adapt to the observed distribution; duplicate edges are
-        # dropped so a degenerate column collapses to fewer bins instead of raising.
-        codes = pd.qcut(numeric, q=min(n_bins, max(1, numeric.nunique())), duplicates="drop")
-        parts.append(column + "=" + codes.astype(str))
+            raise ResearchIntegrityError(
+                f"Binned matching column {column!r} has no numeric values"
+            )
+
+        if bin_edges is not None and column in bin_edges:
+            edges = np.asarray(
+                bin_edges[column],
+                dtype=float,
+            )
+
+            codes = pd.cut(
+                numeric,
+                bins=edges,
+                include_lowest=True,
+                duplicates="drop",
+            )
+        else:
+            codes = pd.qcut(
+                numeric,
+                q=min(
+                    n_bins,
+                    max(
+                        1,
+                        numeric.nunique(),
+                    ),
+                ),
+                duplicates="drop",
+            )
+
+        parts.append(
+            column + "=" + codes.astype(str)
+        )
+
     if not parts:
-        raise ResearchIntegrityError("Matching requires at least one exact or binned column")
+        raise ResearchIntegrityError(
+            "Matching requires at least one exact or binned column"
+        )
+
     key = parts[0]
+
     for part in parts[1:]:
         key = key + "|" + part
+
     return key
+
+
+def _fit_matching_bin_edges(
+    df: pd.DataFrame,
+    binned_columns: Sequence[str],
+    n_bins: int,
+) -> dict[str, list[float]]:
+    """Fit continuous matching bins using training rows only."""
+    edges_by_column: dict[str, list[float]] = {}
+
+    for column in binned_columns:
+        if column not in df.columns:
+            raise ResearchIntegrityError(
+                f"Matching column {column!r} is absent from the dataset"
+            )
+
+        numeric = pd.to_numeric(
+            df[column],
+            errors="coerce",
+        )
+
+        if numeric.isna().all():
+            raise ResearchIntegrityError(
+                f"Binned matching column {column!r} has no numeric values"
+            )
+
+        q = min(
+            n_bins,
+            max(
+                1,
+                numeric.nunique(),
+            ),
+        )
+
+        _, raw_edges = pd.qcut(
+            numeric,
+            q=q,
+            retbins=True,
+            duplicates="drop",
+        )
+
+        raw_edges = np.asarray(
+            raw_edges,
+            dtype=float,
+        )
+
+        if len(raw_edges) < 2:
+            edges_by_column[column] = [
+                float("-inf"),
+                float("inf"),
+            ]
+            continue
+
+        raw_edges[0] = float("-inf")
+        raw_edges[-1] = float("inf")
+
+        edges_by_column[column] = raw_edges.tolist()
+
+    return edges_by_column
 
 
 def build_matched_subset(
@@ -204,6 +320,7 @@ def build_matched_subset(
     n_bins: int = 4,
     seed: int = 2026,
     group_column: str = "split_group_id",
+    bin_edges: dict[str, Sequence[float]] | None = None,
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     """Keep equal numbers of each label inside every nuisance stratum.
 
@@ -219,7 +336,13 @@ def build_matched_subset(
     if "label" not in df.columns:
         raise ResearchIntegrityError("Matched subsets require a label column")
     work = df.copy()
-    work["_stratum"] = _stratum_keys(work, list(exact_columns), list(binned_columns), n_bins)
+    work["_stratum"] = _stratum_keys(
+        work,
+        list(exact_columns),
+        list(binned_columns),
+        n_bins,
+        bin_edges=bin_edges,
+    )
     rng = np.random.default_rng(seed)
     kept: list[pd.DataFrame] = []
     dropped_single_class = 0
@@ -254,6 +377,98 @@ def build_matched_subset(
     }
     return matched, report
 
+def build_partition_matched_subset(
+    df: pd.DataFrame,
+    manifest: dict[str, Any],
+    *,
+    exact_columns: Sequence[str] = ("action",),
+    binned_columns: Sequence[str] = (),
+    n_bins: int = 4,
+    seed: int = 2026,
+    group_column: str = "split_group_id",
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Match train and test independently without allowing test labels into training selection."""
+    sample_ids = df["sample_id"].astype(str)
+
+    train_ids = {
+        str(sample_id)
+        for sample_id in manifest["train"]
+    }
+    test_ids = {
+        str(sample_id)
+        for sample_id in manifest["test"]
+    }
+
+    train_rows = df[
+        sample_ids.isin(train_ids)
+    ].copy()
+
+    test_rows = df[
+        sample_ids.isin(test_ids)
+    ].copy()
+
+    if train_rows.empty:
+        raise ResearchIntegrityError(
+            "Matched confound analysis has no training rows"
+        )
+
+    if test_rows.empty:
+        raise ResearchIntegrityError(
+            "Matched confound analysis has no test rows"
+        )
+
+    bin_edges = _fit_matching_bin_edges(
+        train_rows,
+        binned_columns,
+        n_bins,
+    )
+
+    matched_train, train_report = build_matched_subset(
+        train_rows,
+        exact_columns=exact_columns,
+        binned_columns=binned_columns,
+        n_bins=n_bins,
+        seed=seed,
+        group_column=group_column,
+        bin_edges=bin_edges,
+    )
+
+    matched_test, test_report = build_matched_subset(
+        test_rows,
+        exact_columns=exact_columns,
+        binned_columns=binned_columns,
+        n_bins=n_bins,
+        seed=seed + 1,
+        group_column=group_column,
+        bin_edges=bin_edges,
+    )
+
+    matched = pd.concat(
+        [
+            matched_train,
+            matched_test,
+        ],
+        ignore_index=True,
+    )
+
+    report = {
+        "selection_policy": (
+            "matched independently within frozen train and test partitions"
+        ),
+        "exact_columns": list(exact_columns),
+        "binned_columns": list(binned_columns),
+        "n_bins": int(n_bins),
+        "bin_edges_fit_partition": (
+            "train"
+            if binned_columns
+            else None
+        ),
+        "train": train_report,
+        "test": test_report,
+        "n_matched_rows": int(len(matched)),
+    }
+
+    return matched, report
 
 # --------------------------------------------------------------------------- #
 # Nuisance decodability and residualisation
@@ -491,26 +706,63 @@ def run_confound_suite(
         }
 
     attempt("bluff_vs_value", _bluff_vs_value)
-    attempt("action_matched", lambda: build_matched_subset(
-        df, exact_columns=("action",), seed=config.seed, group_column=manifest.get("group_column", "base_item_id")))
-    attempt("street_matched", lambda: build_matched_subset(
-        bluff_vs_value_subset(df), exact_columns=("action", "street"), seed=config.seed,
-        group_column=manifest.get("group_column", "base_item_id")))
-    attempt("equity_matched", lambda: build_matched_subset(
-        bluff_vs_value_subset(df), exact_columns=("action",), binned_columns=("hand_strength",),
-        seed=config.seed, group_column=manifest.get("group_column", "base_item_id")))
-    attempt("position_matched", lambda: build_matched_subset(
-        bluff_vs_value_subset(df), exact_columns=("action", "position"), seed=config.seed,
-        group_column=manifest.get("group_column", "base_item_id")))
-    attempt("bet_size_matched", lambda: build_matched_subset(
-        bluff_vs_value_subset(df), exact_columns=("action",), binned_columns=("bet_size", "pot_size"),
-        seed=config.seed, group_column=manifest.get("group_column", "base_item_id")))
-    attempt("board_matched", lambda: build_matched_subset(
-        bluff_vs_value_subset(df), exact_columns=("action", "board_texture"), seed=config.seed,
-        group_column=manifest.get("group_column", "base_item_id")))
-    attempt("made_hand_matched", lambda: build_matched_subset(
-        bluff_vs_value_subset(df), exact_columns=("action", "made_hand"), seed=config.seed,
-        group_column=manifest.get("group_column", "base_item_id")))
+    attempt("action_matched", lambda: build_partition_matched_subset(
+        df,
+        manifest,
+        exact_columns=("action",),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
+
+    attempt("street_matched", lambda: build_partition_matched_subset(
+        bluff_vs_value_subset(df),
+        manifest,
+        exact_columns=("action", "street"),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
+
+    attempt("equity_matched", lambda: build_partition_matched_subset(
+        bluff_vs_value_subset(df),
+        manifest,
+        exact_columns=("action",),
+        binned_columns=("hand_strength",),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
+
+    attempt("position_matched", lambda: build_partition_matched_subset(
+        bluff_vs_value_subset(df),
+        manifest,
+        exact_columns=("action", "position"),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
+
+    attempt("bet_size_matched", lambda: build_partition_matched_subset(
+        bluff_vs_value_subset(df),
+        manifest,
+        exact_columns=("action",),
+        binned_columns=("bet_size", "pot_size"),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
+
+    attempt("board_matched", lambda: build_partition_matched_subset(
+        bluff_vs_value_subset(df),
+        manifest,
+        exact_columns=("action", "board_texture"),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
+
+    attempt("made_hand_matched", lambda: build_partition_matched_subset(
+        bluff_vs_value_subset(df),
+        manifest,
+        exact_columns=("action", "made_hand"),
+        seed=config.seed,
+        group_column=manifest.get("group_column", "base_item_id"),
+    ))
     result["unavailable_analyses"] = sorted(
         name for name, v in result["subsets"].items() if v.get("status") == "not_run")
     return result

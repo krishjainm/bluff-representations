@@ -19,11 +19,18 @@ from _stubs import StubHiddenStateProvider
 from deception_circuits.paper import (PaperConfig, ResearchIntegrityError, binary_ece,
                                       compute_binary_metrics, load_activations,
                                       make_split_manifest, validate_dataset)
-from deception_circuits.paper_confounds import (ANALYSIS_REQUIREMENTS, bluff_vs_value_subset,
-                                                build_matched_subset, controlled_probe_analysis,
-                                                describe_metadata_availability,
-                                                nuisance_decodability, residualize_activations,
-                                                run_confound_suite, validate_nuisance_metadata)
+from deception_circuits.paper_confounds import (
+    ANALYSIS_REQUIREMENTS,
+    bluff_vs_value_subset,
+    build_matched_subset,
+    build_partition_matched_subset,
+    controlled_probe_analysis,
+    describe_metadata_availability,
+    nuisance_decodability,
+    residualize_activations,
+    run_confound_suite,
+    validate_nuisance_metadata,
+)
 from deception_circuits.paper_extraction import ExtractionSpec, run_extraction
 
 STUB_MODEL = "stub/tiny-test-model"
@@ -156,6 +163,268 @@ def test_matched_subset_is_deterministic_given_a_seed(tmp_path):
     b, _ = build_matched_subset(df, exact_columns=("action",), seed=7)
     assert a.sample_id.tolist() == b.sample_id.tolist()
 
+def test_confound_matching_training_selection_is_independent_of_test_labels(
+    tmp_path,
+    monkeypatch,
+):
+    """Changing only test labels must not change which training rows are matched."""
+    rows = []
+
+    for index in range(4):
+        rows.append({
+            "sample_id": f"tr0{index}",
+            "base_item_id": f"tr0{index}",
+            "split_group_id": f"tr0{index}",
+            "statement": f"train zero {index}",
+            "response": "raise",
+            "label": 0,
+            "scenario": "poker",
+            "action": "raise",
+        })
+
+    for index in range(4):
+        rows.append({
+            "sample_id": f"tr1{index}",
+            "base_item_id": f"tr1{index}",
+            "split_group_id": f"tr1{index}",
+            "statement": f"train one {index}",
+            "response": "raise",
+            "label": 1,
+            "scenario": "poker",
+            "action": "raise",
+        })
+
+    for index in range(2):
+        rows.append({
+            "sample_id": f"te0{index}",
+            "base_item_id": f"te0{index}",
+            "split_group_id": f"te0{index}",
+            "statement": f"test zero {index}",
+            "response": "raise",
+            "label": 0,
+            "scenario": "poker",
+            "action": "raise",
+        })
+
+    for index in range(4):
+        rows.append({
+            "sample_id": f"te1{index}",
+            "base_item_id": f"te1{index}",
+            "split_group_id": f"te1{index}",
+            "statement": f"test one {index}",
+            "response": "raise",
+            "label": 1,
+            "scenario": "poker",
+            "action": "raise",
+        })
+
+    df = pd.DataFrame(rows)
+
+    manifest = {
+        "group_column": "split_group_id",
+        "train": [
+            sid
+            for sid in df["sample_id"]
+            if str(sid).startswith("tr")
+        ],
+        "validation": [],
+        "test": [
+            sid
+            for sid in df["sample_id"]
+            if str(sid).startswith("te")
+        ],
+    }
+
+    config = PaperConfig(
+        experiment_name="confound-leakage-test",
+        dataset_path=str(tmp_path / "unused.csv"),
+        activation_dir=str(tmp_path / "unused-activations"),
+        output_dir=str(tmp_path / "out"),
+        nuisance_columns=["action"],
+        seed=2026,
+        bootstrap_resamples=10,
+    )
+
+    activations = np.zeros(
+        (len(df), 1, 3),
+        dtype=np.float32,
+    )
+
+    def capture_subset(
+        activations,
+        current_df,
+        current_manifest,
+        subset_ids,
+        config,
+        *,
+        layer,
+    ):
+        keep = set(map(str, subset_ids))
+
+        return {
+            "status": "ok",
+            "train_subset_ids": [
+                str(sid)
+                for sid in current_manifest["train"]
+                if str(sid) in keep
+            ],
+            "test_subset_ids": [
+                str(sid)
+                for sid in current_manifest["test"]
+                if str(sid) in keep
+            ],
+        }
+
+    monkeypatch.setattr(
+        "deception_circuits.paper_confounds._probe_on_subset",
+        capture_subset,
+    )
+
+    original = run_confound_suite(
+        activations,
+        df,
+        manifest,
+        config,
+        layer=0,
+    )
+
+    changed = df.copy()
+    changed.loc[
+        changed["sample_id"] == "te00",
+        "label",
+    ] = 1
+
+    changed_result = run_confound_suite(
+        activations,
+        changed,
+        manifest,
+        config,
+        layer=0,
+    )
+
+    original_train_ids = original[
+        "subsets"
+    ]["action_matched"]["probe"]["train_subset_ids"]
+
+    changed_train_ids = changed_result[
+        "subsets"
+    ]["action_matched"]["probe"]["train_subset_ids"]
+
+    assert original_train_ids == changed_train_ids
+def test_continuous_matching_bins_are_fit_on_train_only():
+    """Changing only test nuisance values must not change train matching."""
+    rows = []
+
+    train_values = [
+        (0, 0.10),
+        (0, 0.20),
+        (0, 0.60),
+        (0, 0.70),
+        (1, 0.15),
+        (1, 0.25),
+        (1, 0.65),
+        (1, 0.75),
+    ]
+
+    for index, (label, strength) in enumerate(train_values):
+        rows.append({
+            "sample_id": f"tr{index}",
+            "base_item_id": f"tr{index}",
+            "split_group_id": f"tr{index}",
+            "statement": f"train {index}",
+            "response": "raise",
+            "label": label,
+            "scenario": "poker",
+            "action": "raise",
+            "hand_strength": strength,
+        })
+
+    test_values = [
+        (0, 0.12),
+        (0, 0.62),
+        (1, 0.18),
+        (1, 0.68),
+    ]
+
+    for index, (label, strength) in enumerate(test_values):
+        rows.append({
+            "sample_id": f"te{index}",
+            "base_item_id": f"te{index}",
+            "split_group_id": f"te{index}",
+            "statement": f"test {index}",
+            "response": "raise",
+            "label": label,
+            "scenario": "poker",
+            "action": "raise",
+            "hand_strength": strength,
+        })
+
+    df = pd.DataFrame(rows)
+
+    manifest = {
+        "group_column": "split_group_id",
+        "train": [
+            sid
+            for sid in df["sample_id"]
+            if str(sid).startswith("tr")
+        ],
+        "validation": [],
+        "test": [
+            sid
+            for sid in df["sample_id"]
+            if str(sid).startswith("te")
+        ],
+    }
+
+    original_subset, original_report = build_partition_matched_subset(
+        df,
+        manifest,
+        exact_columns=("action",),
+        binned_columns=("hand_strength",),
+        n_bins=2,
+        seed=2026,
+        group_column="split_group_id",
+    )
+
+    changed = df.copy()
+
+    changed.loc[
+        changed["sample_id"].astype(str).str.startswith("te"),
+        "hand_strength",
+    ] = [
+        1000.0,
+        2000.0,
+        3000.0,
+        4000.0,
+    ]
+
+    changed_subset, changed_report = build_partition_matched_subset(
+        changed,
+        manifest,
+        exact_columns=("action",),
+        binned_columns=("hand_strength",),
+        n_bins=2,
+        seed=2026,
+        group_column="split_group_id",
+    )
+
+    original_train_ids = sorted(
+        original_subset.loc[
+            original_subset["sample_id"].astype(str).str.startswith("tr"),
+            "sample_id",
+        ].astype(str)
+    )
+
+    changed_train_ids = sorted(
+        changed_subset.loc[
+            changed_subset["sample_id"].astype(str).str.startswith("tr"),
+            "sample_id",
+        ].astype(str)
+    )
+
+    assert original_train_ids == changed_train_ids
+    assert original_report["bin_edges_fit_partition"] == "train"
+    assert changed_report["bin_edges_fit_partition"] == "train"
 
 def test_matched_subset_drops_and_counts_single_class_strata(tmp_path):
     df = pd.DataFrame(_rows(n_groups=24))
