@@ -1,0 +1,575 @@
+{
+  "selected_layer": 31,
+  "layer_selected_on": "validation (upstream)",
+  "metadata_availability": {
+    "min_coverage": 0.95,
+    "columns": {
+      "action": {
+        "column": "action",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 1,
+        "kind": "categorical"
+      },
+      "street": {
+        "column": "street",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 3,
+        "kind": "categorical"
+      },
+      "position": {
+        "column": "position",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 6,
+        "kind": "categorical"
+      },
+      "made_hand": {
+        "column": "made_hand",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 9,
+        "kind": "categorical"
+      },
+      "board_texture": {
+        "column": "board_texture",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 3,
+        "kind": "categorical"
+      },
+      "board_paired": {
+        "column": "board_paired",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 2,
+        "kind": "categorical"
+      },
+      "bet_size": {
+        "column": "bet_size",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 84,
+        "kind": "continuous"
+      }
+    },
+    "usable_columns": [
+      "action",
+      "bet_size",
+      "board_paired",
+      "board_texture",
+      "made_hand",
+      "position",
+      "street"
+    ],
+    "analyses": {
+      "bluff_vs_value": {
+        "available": true,
+        "requires": [
+          "action"
+        ]
+      },
+      "action_matched": {
+        "available": true,
+        "requires": [
+          "action"
+        ]
+      },
+      "street_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "street"
+        ]
+      },
+      "equity_matched": {
+        "available": false,
+        "requires": [
+          "action",
+          "hand_strength"
+        ],
+        "blocked_by": [
+          "hand_strength"
+        ]
+      },
+      "made_hand_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "made_hand"
+        ]
+      },
+      "bet_size_matched": {
+        "available": false,
+        "requires": [
+          "action",
+          "bet_size",
+          "pot_size"
+        ],
+        "blocked_by": [
+          "pot_size"
+        ]
+      },
+      "position_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "position"
+        ]
+      },
+      "board_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "board_texture"
+        ]
+      }
+    },
+    "unavailable_analyses": [
+      "bet_size_matched",
+      "equity_matched"
+    ]
+  },
+  "nuisance_decodability": {
+    "action": {
+      "status": "not_run",
+      "reason": "only one value present in the training split",
+      "layer": 31
+    },
+    "street": {
+      "status": "ok",
+      "target_type": "categorical",
+      "n_classes": 3,
+      "accuracy": 1.0,
+      "majority_baseline_accuracy": 0.4889660580262126,
+      "n_train": 31241,
+      "n_test": 8927,
+      "layer": 31
+    },
+    "position": {
+      "status": "ok",
+      "target_type": "categorical",
+      "n_classes": 6,
+      "accuracy": 1.0,
+      "majority_baseline_accuracy": 0.28867480676599083,
+      "n_train": 31241,
+      "n_test": 8927,
+      "layer": 31
+    },
+    "made_hand": {
+      "status": "ok",
+      "target_type": "categorical",
+      "n_classes": 9,
+      "accuracy": 0.8060938725215638,
+      "majority_baseline_accuracy": 0.26716702139576565,
+      "n_train": 31241,
+      "n_test": 8927,
+      "layer": 31
+    },
+    "board_texture": {
+      "status": "ok",
+      "target_type": "categorical",
+      "n_classes": 3,
+      "accuracy": 0.9438781225495687,
+      "majority_baseline_accuracy": 0.5957208468690489,
+      "n_train": 31241,
+      "n_test": 8927,
+      "layer": 31
+    },
+    "board_paired": {
+      "status": "ok",
+      "target_type": "categorical",
+      "n_classes": 2,
+      "accuracy": 0.9866696538590792,
+      "majority_baseline_accuracy": 0.7060602666069228,
+      "n_train": 31241,
+      "n_test": 8927,
+      "layer": 31
+    },
+    "bet_size": {
+      "status": "ok",
+      "target_type": "continuous",
+      "r2_vs_train_mean": 0.9922720871420122,
+      "rmse": 1.573813557013618,
+      "baseline_rmse": 17.90285004225863,
+      "n_train": 31241,
+      "n_test": 8927,
+      "layer": 31
+    }
+  },
+  "controlled_probe": {
+    "layer": 31,
+    "unadjusted": {
+      "auroc": 0.9338190140360343,
+      "pr_auc": 0.7368042206789757,
+      "accuracy": 0.8805869833090624,
+      "balanced_accuracy": 0.8619019733045595,
+      "precision": 0.6045498547918683,
+      "recall": 0.8337783711615487,
+      "f1": 0.7008978675645342,
+      "mcc": 0.6413323755734543,
+      "ece": 0.07444267262860245,
+      "n": 8927,
+      "positive_rate": 0.16780553377394422,
+      "confusion_matrix": {
+        "tn": 6612,
+        "fp": 817,
+        "fn": 249,
+        "tp": 1249
+      }
+    },
+    "residualized": {
+      "columns": [
+        "action",
+        "street",
+        "position",
+        "made_hand",
+        "board_texture",
+        "board_paired",
+        "bet_size"
+      ],
+      "auroc": 0.7138113077947875,
+      "pr_auc": 0.32850045235671627,
+      "accuracy": 0.6907135655875434,
+      "balanced_accuracy": 0.6513582250197283,
+      "precision": 0.292064537372407,
+      "recall": 0.5921228304405874,
+      "f1": 0.3911797133406836,
+      "mcc": 0.23876851824562773,
+      "ece": 0.22408681266534883,
+      "n": 8927,
+      "positive_rate": 0.16780553377394422,
+      "confusion_matrix": {
+        "tn": 5279,
+        "fp": 2150,
+        "fn": 611,
+        "tp": 887
+      }
+    },
+    "auroc_drop_after_control": 0.220008
+  },
+  "subsets": {
+    "bluff_vs_value": {
+      "matching": {
+        "description": "aggressive actions only; bluff raise vs value raise",
+        "n_rows": 44631,
+        "label_balance": {
+          "0": 37141,
+          "1": 7490
+        }
+      },
+      "probe": {
+        "status": "ok",
+        "layer": 31,
+        "n_train": 31241,
+        "n_test": 8927,
+        "auroc": 0.9338190140360343,
+        "pr_auc": 0.7368042206789757,
+        "accuracy": 0.8805869833090624,
+        "balanced_accuracy": 0.8619019733045595,
+        "precision": 0.6045498547918683,
+        "recall": 0.8337783711615487,
+        "f1": 0.7008978675645342,
+        "mcc": 0.6413323755734543,
+        "ece": 0.07444267262860245,
+        "n": 8927,
+        "positive_rate": 0.16780553377394422,
+        "confusion_matrix": {
+          "tn": 6612,
+          "fp": 817,
+          "fn": 249,
+          "tp": 1249
+        },
+        "test_auroc_grouped_ci": {
+          "metric": "auroc",
+          "lower": 0.9279619973119084,
+          "upper": 0.9399608053952472,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000
+        }
+      }
+    },
+    "action_matched": {
+      "matching": {
+        "exact_columns": [
+          "action"
+        ],
+        "binned_columns": [],
+        "n_bins": 4,
+        "seed": 2026,
+        "n_input_rows": 44631,
+        "n_matched_rows": 14980,
+        "n_strata_used": 1,
+        "n_strata_dropped_single_class": 0,
+        "label_balance": {
+          "0": 7490,
+          "1": 7490
+        },
+        "n_groups": 14922
+      },
+      "probe": {
+        "status": "ok",
+        "layer": 31,
+        "n_train": 10487,
+        "n_test": 2960,
+        "auroc": 0.9210698624157335,
+        "pr_auc": 0.9084870081624201,
+        "accuracy": 0.8581081081081081,
+        "balanced_accuracy": 0.8580706788257577,
+        "precision": 0.8588548601864181,
+        "recall": 0.8611481975967957,
+        "f1": 0.86,
+        "mcc": 0.7161675185920233,
+        "ece": 0.06693722681104958,
+        "n": 2960,
+        "positive_rate": 0.5060810810810811,
+        "confusion_matrix": {
+          "tn": 1250,
+          "fp": 212,
+          "fn": 208,
+          "tp": 1290
+        },
+        "test_auroc_grouped_ci": {
+          "metric": "auroc",
+          "lower": 0.9114710678323215,
+          "upper": 0.9301966059187062,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000
+        }
+      }
+    },
+    "street_matched": {
+      "matching": {
+        "exact_columns": [
+          "action",
+          "street"
+        ],
+        "binned_columns": [],
+        "n_bins": 4,
+        "seed": 2026,
+        "n_input_rows": 44631,
+        "n_matched_rows": 14980,
+        "n_strata_used": 3,
+        "n_strata_dropped_single_class": 0,
+        "label_balance": {
+          "0": 7490,
+          "1": 7490
+        },
+        "n_groups": 14924
+      },
+      "probe": {
+        "status": "ok",
+        "layer": 31,
+        "n_train": 10521,
+        "n_test": 2994,
+        "auroc": 0.9157193994845177,
+        "pr_auc": 0.8965350318254651,
+        "accuracy": 0.8490313961255845,
+        "balanced_accuracy": 0.8490286513925877,
+        "precision": 0.8463576158940397,
+        "recall": 0.8531375166889186,
+        "f1": 0.8497340425531915,
+        "mcc": 0.6980834696308433,
+        "ece": 0.06919088062292511,
+        "n": 2994,
+        "positive_rate": 0.5003340013360054,
+        "confusion_matrix": {
+          "tn": 1264,
+          "fp": 232,
+          "fn": 220,
+          "tp": 1278
+        },
+        "test_auroc_grouped_ci": {
+          "metric": "auroc",
+          "lower": 0.9054766467427489,
+          "upper": 0.925813516121894,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000
+        }
+      }
+    },
+    "equity_matched": {
+      "status": "not_run",
+      "reason": "requires usable ['hand_strength']",
+      "requires": [
+        "action",
+        "hand_strength"
+      ]
+    },
+    "position_matched": {
+      "matching": {
+        "exact_columns": [
+          "action",
+          "position"
+        ],
+        "binned_columns": [],
+        "n_bins": 4,
+        "seed": 2026,
+        "n_input_rows": 44631,
+        "n_matched_rows": 14980,
+        "n_strata_used": 6,
+        "n_strata_dropped_single_class": 0,
+        "label_balance": {
+          "0": 7490,
+          "1": 7490
+        },
+        "n_groups": 14921
+      },
+      "probe": {
+        "status": "ok",
+        "layer": 31,
+        "n_train": 10477,
+        "n_test": 3019,
+        "auroc": 0.9201468712611776,
+        "pr_auc": 0.8981905763695568,
+        "accuracy": 0.851937727724412,
+        "balanced_accuracy": 0.852002319112312,
+        "precision": 0.8441388343156516,
+        "recall": 0.8604806408544726,
+        "f1": 0.8522314049586777,
+        "mcc": 0.7040315212796491,
+        "ece": 0.06542854937626259,
+        "n": 3019,
+        "positive_rate": 0.49619079165286517,
+        "confusion_matrix": {
+          "tn": 1283,
+          "fp": 238,
+          "fn": 209,
+          "tp": 1289
+        },
+        "test_auroc_grouped_ci": {
+          "metric": "auroc",
+          "lower": 0.9101479248796153,
+          "upper": 0.9296868443521552,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000
+        }
+      }
+    },
+    "bet_size_matched": {
+      "status": "not_run",
+      "reason": "requires usable ['pot_size']",
+      "requires": [
+        "action",
+        "bet_size",
+        "pot_size"
+      ]
+    },
+    "board_matched": {
+      "matching": {
+        "exact_columns": [
+          "action",
+          "board_texture"
+        ],
+        "binned_columns": [],
+        "n_bins": 4,
+        "seed": 2026,
+        "n_input_rows": 44631,
+        "n_matched_rows": 14980,
+        "n_strata_used": 3,
+        "n_strata_dropped_single_class": 0,
+        "label_balance": {
+          "0": 7490,
+          "1": 7490
+        },
+        "n_groups": 14925
+      },
+      "probe": {
+        "status": "ok",
+        "layer": 31,
+        "n_train": 10474,
+        "n_test": 3024,
+        "auroc": 0.9169051526981367,
+        "pr_auc": 0.8979415042228371,
+        "accuracy": 0.8518518518518519,
+        "balanced_accuracy": 0.8519248906799279,
+        "precision": 0.8440366972477065,
+        "recall": 0.8598130841121495,
+        "f1": 0.8518518518518519,
+        "mcc": 0.703849781359856,
+        "ece": 0.05892680301089164,
+        "n": 3024,
+        "positive_rate": 0.49537037037037035,
+        "confusion_matrix": {
+          "tn": 1288,
+          "fp": 238,
+          "fn": 210,
+          "tp": 1288
+        },
+        "test_auroc_grouped_ci": {
+          "metric": "auroc",
+          "lower": 0.9062283293209646,
+          "upper": 0.9272771163887886,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000
+        }
+      }
+    },
+    "made_hand_matched": {
+      "matching": {
+        "exact_columns": [
+          "action",
+          "made_hand"
+        ],
+        "binned_columns": [],
+        "n_bins": 4,
+        "seed": 2026,
+        "n_input_rows": 44631,
+        "n_matched_rows": 12024,
+        "n_strata_used": 8,
+        "n_strata_dropped_single_class": 1,
+        "label_balance": {
+          "0": 6012,
+          "1": 6012
+        },
+        "n_groups": 11972
+      },
+      "probe": {
+        "status": "ok",
+        "layer": 31,
+        "n_train": 8403,
+        "n_test": 2400,
+        "auroc": 0.8165037142593251,
+        "pr_auc": 0.7942571060574966,
+        "accuracy": 0.7395833333333334,
+        "balanced_accuracy": 0.7395389971187319,
+        "precision": 0.7323151125401929,
+        "recall": 0.7572734829592684,
+        "f1": 0.7445852063751532,
+        "mcc": 0.4793988680777277,
+        "ece": 0.12983831502088689,
+        "n": 2400,
+        "positive_rate": 0.50125,
+        "confusion_matrix": {
+          "tn": 864,
+          "fp": 333,
+          "fn": 292,
+          "tp": 911
+        },
+        "test_auroc_grouped_ci": {
+          "metric": "auroc",
+          "lower": 0.7997500236320244,
+          "upper": 0.8325066499442835,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000
+        }
+      }
+    }
+  },
+  "unavailable_analyses": [
+    "bet_size_matched",
+    "equity_matched"
+  ],
+  "selected_layer_source": {
+    "from": "probe_results.json",
+    "per_seed_layers": [
+      31,
+      31,
+      31,
+      31,
+      31
+    ],
+    "rule": "modal layer across seeds"
+  }
+}

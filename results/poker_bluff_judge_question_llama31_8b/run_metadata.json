@@ -1,0 +1,89 @@
+{
+  "timestamp_utc": "2026-09-16T01:08:12.589758+00:00",
+  "git_commit": "94aa315fa876bc3846c7f80f48b393c08e5b0f9c",
+  "python": "3.14.7 (main, Sep  1 2026, 14:18:09) [Clang 22.1.3 ]",
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "numpy": "2.4.1",
+  "torch": "2.10.0+cu128",
+  "config": {
+    "experiment_name": "poker_bluff_judge_question_llama31_8b",
+    "dataset_path": "data/derived/poker_bluff_judge_question_v1.csv",
+    "activation_dir": "data/activations/poker_bluff_judge_question_llama31_8b_prompt_end",
+    "output_dir": "results/poker_bluff_judge_question_llama31_8b",
+    "seed": 2026,
+    "split_manifest_path": null,
+    "group_column": "split_group_id",
+    "split_strategy": "grouped_stratified",
+    "stratify_columns": [
+      "label"
+    ],
+    "test_fraction": 0.2,
+    "validation_fraction": 0.1,
+    "probe_c": 1.0,
+    "n_seeds": 5,
+    "bootstrap_resamples": 1000,
+    "activation_site": "residual_stream",
+    "activation_mode": "prompt_end",
+    "subject_model": "meta-llama/Llama-3.1-8B-Instruct",
+    "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "tokenizer_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "activation_layers": "all",
+    "max_sequence_length": 512,
+    "prompt_template_id": "poker_bluff_judgement_judge_question_v1",
+    "decision_boundary_marker": "Answer:",
+    "prompt_template": "{statement}\nAnswer:",
+    "torch_dtype": "bfloat16",
+    "probe_type": "logistic_regression",
+    "sae_config": {
+      "n_features": 32768,
+      "activation": "topk",
+      "k": 64,
+      "epochs": 60,
+      "batch_size": 1024,
+      "learning_rate": 0.0003,
+      "seed": 0
+    },
+    "sae_top_n_features": 10,
+    "sae_stability_seeds": [
+      0,
+      1,
+      2
+    ],
+    "steering_direction_source": "probe_train_partition",
+    "intervention_layer": null,
+    "intervention_site": "block",
+    "intervention_token_policy": "prompt_end",
+    "intervention_strengths": [
+      0.5,
+      1.0,
+      2.0,
+      4.0,
+      8.0
+    ],
+    "causal_eval_size": 1000,
+    "endpoint_options": [
+      "Yes",
+      "No"
+    ],
+    "endpoint_positive_option": "Yes",
+    "causal_nuisance_column": "made_hand",
+    "decoding_settings": {},
+    "nuisance_columns": [
+      "action",
+      "street",
+      "position",
+      "made_hand",
+      "board_texture",
+      "board_paired",
+      "bet_size"
+    ],
+    "learning_curve_sizes": [
+      500,
+      2000,
+      8000,
+      20000,
+      31000
+    ],
+    "learning_curve_subsamples": 5
+  }
+}

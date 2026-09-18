@@ -1,0 +1,17 @@
+{
+  "fingerprint": "c5638b1c5a014520aeba45724a850bcca907113314660ef67763a4abe5f7c0b6",
+  "spec": {
+    "activation_mode": "prompt_end",
+    "activation_site": "block",
+    "allow_response_leakage": false,
+    "decision_boundary_marker": "Raise.",
+    "layer_indices": null,
+    "max_sequence_length": 512,
+    "model_revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+    "prompt_template": "{statement}",
+    "prompt_template_id": "poker_bluff_judgement_neutral_state_v1",
+    "subject_model": "mistralai/Mistral-7B-Instruct-v0.3",
+    "tokenizer_revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+    "torch_dtype": "bfloat16"
+  }
+}

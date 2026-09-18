@@ -1,0 +1,17 @@
+{
+  "fingerprint": "48bd24348b117158c2cb24dee3da48684e19ab91934d293c7eba2d30694af5b8",
+  "spec": {
+    "activation_mode": "prompt_end",
+    "activation_site": "block",
+    "allow_response_leakage": false,
+    "decision_boundary_marker": "Raise.",
+    "layer_indices": null,
+    "max_sequence_length": 512,
+    "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "prompt_template": "{statement}",
+    "prompt_template_id": "poker_bluff_judgement_neutral_state_v1",
+    "subject_model": "meta-llama/Llama-3.1-8B-Instruct",
+    "tokenizer_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "torch_dtype": "bfloat16"
+  }
+}

@@ -1,0 +1,74 @@
+activation_dir: data/activations/poker_bluff_judge_question_llama31_8b_prompt_end
+activation_layers: all
+activation_mode: prompt_end
+activation_site: residual_stream
+bootstrap_resamples: 1000
+causal_eval_size: 1000
+causal_nuisance_column: made_hand
+dataset_path: data/derived/poker_bluff_judge_question_v1.csv
+decision_boundary_marker: 'Answer:'
+decoding_settings: {}
+endpoint_options:
+- 'Yes'
+- 'No'
+endpoint_positive_option: 'Yes'
+experiment_name: poker_bluff_judge_question_llama31_8b
+group_column: split_group_id
+intervention_layer: null
+intervention_site: block
+intervention_strengths:
+- 0.5
+- 1.0
+- 2.0
+- 4.0
+- 8.0
+intervention_token_policy: prompt_end
+learning_curve_sizes:
+- 500
+- 2000
+- 8000
+- 20000
+- 31000
+learning_curve_subsamples: 5
+max_sequence_length: 512
+model_revision: 0e9e39f249a16976918f6564b8830bc894c89659
+n_seeds: 5
+nuisance_columns:
+- action
+- street
+- position
+- made_hand
+- board_texture
+- board_paired
+- bet_size
+output_dir: results/poker_bluff_judge_question_llama31_8b
+probe_c: 1.0
+probe_type: logistic_regression
+prompt_template: '{statement}
+
+  Answer:'
+prompt_template_id: poker_bluff_judgement_judge_question_v1
+sae_config:
+  activation: topk
+  batch_size: 1024
+  epochs: 60
+  k: 64
+  learning_rate: 0.0003
+  n_features: 32768
+  seed: 0
+sae_stability_seeds:
+- 0
+- 1
+- 2
+sae_top_n_features: 10
+seed: 2026
+split_manifest_path: null
+split_strategy: grouped_stratified
+steering_direction_source: probe_train_partition
+stratify_columns:
+- label
+subject_model: meta-llama/Llama-3.1-8B-Instruct
+test_fraction: 0.2
+tokenizer_revision: 0e9e39f249a16976918f6564b8830bc894c89659
+torch_dtype: bfloat16
+validation_fraction: 0.1

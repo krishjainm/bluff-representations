@@ -1,0 +1,80 @@
+{
+  "timestamp_utc": "2026-09-16T13:09:50.914722+00:00",
+  "git_commit": "cd84f0aff01243afb2efda8550bd9d296a1ec67b",
+  "python": "3.14.7 (main, Sep  1 2026, 14:18:09) [Clang 22.1.3 ]",
+  "platform": "Linux-6.8.0-1046-nvidia-x86_64-with-glibc2.35",
+  "numpy": "2.4.1",
+  "torch": "2.10.0+cu128",
+  "config": {
+    "experiment_name": "poker_bluff_neutral_state_mistral7b_v03",
+    "dataset_path": "data/derived/poker_bluff_neutral_state_v1.csv",
+    "activation_dir": "data/activations/poker_bluff_neutral_state_mistral7b_v03_prompt_end",
+    "output_dir": "results/poker_bluff_neutral_state_mistral7b_v03",
+    "seed": 2026,
+    "split_manifest_path": null,
+    "group_column": "split_group_id",
+    "split_strategy": "grouped_stratified",
+    "stratify_columns": [
+      "label"
+    ],
+    "test_fraction": 0.2,
+    "validation_fraction": 0.1,
+    "probe_c": 1.0,
+    "n_seeds": 5,
+    "bootstrap_resamples": 1000,
+    "activation_site": "residual_stream",
+    "activation_mode": "prompt_end",
+    "subject_model": "mistralai/Mistral-7B-Instruct-v0.3",
+    "model_revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+    "tokenizer_revision": "c170c708c41dac9275d15a8fff4eca08d52bab71",
+    "activation_layers": "all",
+    "max_sequence_length": 512,
+    "prompt_template_id": "poker_bluff_judgement_neutral_state_v1",
+    "decision_boundary_marker": "Raise.",
+    "prompt_template": "{statement}",
+    "torch_dtype": "bfloat16",
+    "probe_type": "logistic_regression",
+    "sae_config": {
+      "n_features": 32768,
+      "activation": "topk",
+      "k": 64,
+      "epochs": 60,
+      "batch_size": 1024,
+      "learning_rate": 0.0003,
+      "seed": 0
+    },
+    "sae_top_n_features": 10,
+    "sae_stability_seeds": [
+      0,
+      1,
+      2
+    ],
+    "steering_direction_source": "probe_train_partition",
+    "intervention_layer": null,
+    "intervention_site": null,
+    "intervention_token_policy": null,
+    "intervention_strengths": [],
+    "causal_eval_size": 300,
+    "endpoint_options": [],
+    "endpoint_positive_option": null,
+    "causal_nuisance_column": null,
+    "decoding_settings": {},
+    "nuisance_columns": [
+      "action",
+      "street",
+      "position",
+      "made_hand",
+      "board_texture",
+      "board_paired",
+      "bet_size"
+    ],
+    "learning_curve_sizes": [
+      500,
+      2000,
+      8000,
+      20000,
+      31000
+    ],
+    "learning_curve_subsamples": 5
+  }
+}

@@ -1,0 +1,881 @@
+{
+  "primary_endpoint": "forced_choice_positive_probability",
+  "primary_endpoint_is_probe_derived": false,
+  "probe_score_role": "diagnostic only; never the primary endpoint",
+  "decoding": "deterministic single forward pass (no sampling) for the forced-choice endpoint",
+  "baseline_choice_mass_check": {
+    "observed": 0.9802394738721262,
+    "floor": 0.5,
+    "n_prompts_checked": 16
+  },
+  "prompt_template": "{statement}\nAnswer:",
+  "layer": 30,
+  "n_prompts": 500,
+  "n_groups": 500,
+  "strengths": [
+    0.5,
+    1.0,
+    2.0,
+    4.0
+  ],
+  "conditions": [
+    "baseline",
+    "positive_steering",
+    "negative_steering",
+    "random_matched_norm",
+    "orthogonal",
+    "shuffled_label",
+    "wrong_layer",
+    "wrong_token_position",
+    "activation_patch_mismatched_prompt",
+    "nuisance_steering_nuisance_made_hand"
+  ],
+  "directions": {
+    "probe": {
+      "name": "probe",
+      "source": "logistic probe weights, train partition only",
+      "layer": 30,
+      "seed": 2026,
+      "notes": "",
+      "norm": 1.0,
+      "dim": 4096
+    },
+    "random_matched_norm": {
+      "name": "random_matched_norm",
+      "source": "random gaussian, unit norm (matched to probe by construction)",
+      "layer": 30,
+      "seed": 2026,
+      "notes": "tests whether any direction of this magnitude moves the endpoint",
+      "norm": 0.9999999999999999,
+      "dim": 4096
+    },
+    "orthogonal": {
+      "name": "orthogonal",
+      "source": "random vector orthogonalised against the probe direction",
+      "layer": 30,
+      "seed": 2027,
+      "notes": "tests whether the effect is specific to the probe subspace",
+      "norm": 1.0,
+      "dim": 4096
+    },
+    "shuffled_label": {
+      "name": "shuffled_label",
+      "source": "probe refit on permuted training labels",
+      "layer": 30,
+      "seed": 2026,
+      "notes": "tests whether the fitting procedure alone produces an effective direction",
+      "norm": 1.0,
+      "dim": 4096
+    },
+    "nuisance_made_hand": {
+      "name": "nuisance_made_hand",
+      "source": "probe fit to predict made_hand != 'pair'",
+      "layer": 30,
+      "seed": 2026,
+      "notes": "tests whether a strategy direction moves the endpoint as much as the probe",
+      "norm": 1.0,
+      "dim": 4096
+    }
+  },
+  "effects": {
+    "positive_steering": {
+      "notes": "adds the probe direction",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3017588653481211,
+          "mean_difference": -0.0023851281489630526,
+          "ci_lower": -0.002394050056739838,
+          "ci_upper": -0.002375444974346455,
+          "effect_size_dz": -22.53466856028017,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.29936456311127974,
+          "mean_difference": -0.004779430385804289,
+          "ci_lower": -0.004797162512820971,
+          "ci_upper": -0.00476004024655458,
+          "effect_size_dz": -22.337012222013307,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.29455661780068293,
+          "mean_difference": -0.009587375696401118,
+          "ci_lower": -0.009624027797957393,
+          "ci_upper": -0.00954743434488121,
+          "effect_size_dz": -21.820872209568012,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.2849022407769114,
+          "mean_difference": -0.019241752720172638,
+          "ci_lower": -0.019318450452620782,
+          "ci_upper": -0.019158940645962217,
+          "effect_size_dz": -20.81980650665252,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    },
+    "negative_steering": {
+      "notes": "subtracts the probe direction",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3065193342209144,
+          "mean_difference": 0.0023753407238303503,
+          "ci_lower": 0.0023660388915893817,
+          "ci_upper": 0.002383872655468643,
+          "effect_size_dz": 23.232012002432644,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3088831847914634,
+          "mean_difference": 0.004739191294379361,
+          "ci_lower": 0.004720782100387883,
+          "ci_upper": 0.004756058606069858,
+          "effect_size_dz": 23.46085402431398,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3135718377038553,
+          "mean_difference": 0.0094278442067713,
+          "ci_lower": 0.009392185471733648,
+          "ci_upper": 0.009460490177177804,
+          "effect_size_dz": 23.968959590090364,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3227546663032833,
+          "mean_difference": 0.01861067280619925,
+          "ci_lower": 0.018542571483379063,
+          "ci_upper": 0.018673002078747458,
+          "effect_size_dz": 25.0069158626949,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    },
+    "random_matched_norm": {
+      "notes": "",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.30991317869061075,
+          "mean_difference": 0.005769185193526724,
+          "ci_lower": 0.005748942558764879,
+          "ci_upper": 0.005791585595455615,
+          "effect_size_dz": 23.935970123886325,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.01082087048779616
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3157120292011448,
+          "mean_difference": 0.011568035704060727,
+          "ci_lower": 0.011528082936394422,
+          "ci_upper": 0.011612224615186031,
+          "effect_size_dz": 24.40567720257631,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.02164174097559232
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.32739093682005266,
+          "mean_difference": 0.02324694332296863,
+          "ci_lower": 0.02317000227416004,
+          "ci_upper": 0.02333247717545655,
+          "effect_size_dz": 25.293074068207154,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.04328348195118464
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.35098304418694304,
+          "mean_difference": 0.04683905068985904,
+          "ci_lower": 0.0466961721236418,
+          "ci_upper": 0.04699853216126072,
+          "effect_size_dz": 27.24900253884234,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236927
+        }
+      }
+    },
+    "orthogonal": {
+      "notes": "",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3054142013453787,
+          "mean_difference": 0.0012702078482946589,
+          "ci_lower": 0.0012662143782713414,
+          "ci_upper": 0.00127421788635307,
+          "effect_size_dz": 27.556810940341396,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.306635555236654,
+          "mean_difference": 0.0024915617395699723,
+          "ci_lower": 0.002483881241330269,
+          "ci_upper": 0.0024991353330590825,
+          "effect_size_dz": 28.210045953851527,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.30892513627566226,
+          "mean_difference": 0.00478114277857824,
+          "ci_lower": 0.004766930833057144,
+          "ci_upper": 0.004795993718500962,
+          "effect_size_dz": 28.160368125755262,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3128508267100236,
+          "mean_difference": 0.008706833212939554,
+          "ci_lower": 0.008679095921819206,
+          "ci_upper": 0.008737402187363094,
+          "effect_size_dz": 26.738855505035378,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    },
+    "shuffled_label": {
+      "notes": "",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.307643504086999,
+          "mean_difference": 0.0034995105899149237,
+          "ci_lower": 0.0034875192862631322,
+          "ci_upper": 0.0035116575956073946,
+          "effect_size_dz": 25.01508094185318,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.31111743557926647,
+          "mean_difference": 0.006973442082182393,
+          "ci_lower": 0.006949304878451284,
+          "ci_upper": 0.006997804508904435,
+          "effect_size_dz": 25.22111980427952,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3179859625913481,
+          "mean_difference": 0.01384196909426403,
+          "ci_lower": 0.013794644998225343,
+          "ci_upper": 0.01388885639355437,
+          "effect_size_dz": 25.709535172843022,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.33140186397784144,
+          "mean_difference": 0.027257870480757434,
+          "ci_lower": 0.027167457593592112,
+          "ci_upper": 0.027348232296602194,
+          "effect_size_dz": 26.62278571784755,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    },
+    "wrong_layer": {
+      "notes": "probe direction applied at a different layer",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.2780462887498222,
+          "mean_difference": -0.026097704747261887,
+          "ci_lower": -0.026500581598861823,
+          "ci_upper": -0.02568883150266101,
+          "effect_size_dz": -5.60828266170962,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.2983628067465165,
+          "mean_difference": -0.005781186750567549,
+          "ci_lower": -0.006397535599077399,
+          "ci_upper": -0.005196916556232553,
+          "effect_size_dz": -0.8802907670670926,
+          "signed_consistency_rate": 0.798,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.33818259444522186,
+          "mean_difference": 0.03403860094813783,
+          "ci_lower": 0.03300744190237679,
+          "ci_upper": 0.0350692294911164,
+          "effect_size_dz": 2.8429119207415607,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.5472557412480482,
+          "mean_difference": 0.24311174775096414,
+          "ci_lower": 0.2406411087543692,
+          "ci_upper": 0.24589267567761397,
+          "effect_size_dz": 8.239488808697137,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.952,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    },
+    "wrong_token_position": {
+      "notes": "probe direction applied away from the decision position",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.304067213851139,
+          "mean_difference": -7.677964594501863e-05,
+          "ci_lower": -7.775489205131117e-05,
+          "ci_upper": -7.58359592536512e-05,
+          "effect_size_dz": -7.002186599115136,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.30399037441848825,
+          "mean_difference": -0.0001536190785957925,
+          "ci_lower": -0.0001550450587096205,
+          "ci_upper": -0.00015211435260594055,
+          "effect_size_dz": -9.240958246976925,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3038363660639775,
+          "mean_difference": -0.00030762743310660347,
+          "ci_lower": -0.0003101501201797091,
+          "ci_upper": -0.0003047546871955464,
+          "effect_size_dz": -10.26261659309109,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3035284163175122,
+          "mean_difference": -0.0006155771795718422,
+          "ci_lower": -0.0006204812211788621,
+          "ci_upper": -0.0006101623610036344,
+          "effect_size_dz": -10.428978869982302,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    },
+    "activation_patch_mismatched_prompt": {
+      "notes": "true patching: activation replaced with one from a different prompt",
+      "by_strength": {
+        "0": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.3041767010578963,
+          "mean_difference": 3.270756081229242e-05,
+          "ci_lower": -0.0028258345721873957,
+          "ci_upper": 0.002948682731958918,
+          "effect_size_dz": 0.001022185736714911,
+          "signed_consistency_rate": 0.48,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": NaN
+        }
+      }
+    },
+    "nuisance_steering_nuisance_made_hand": {
+      "notes": "a strategy direction, for comparison with the probe direction",
+      "by_strength": {
+        "0.5": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.30042849734079974,
+          "mean_difference": -0.0037154961562842425,
+          "ci_lower": -0.0037267763356532103,
+          "ci_upper": -0.003704928699075832,
+          "effect_size_dz": -29.357069456936937,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.010820870487796161
+        },
+        "1": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.29669350117128884,
+          "mean_difference": -0.007450492325795162,
+          "ci_lower": -0.007473539373592364,
+          "ci_upper": -0.0074288711142513056,
+          "effect_size_dz": -28.902812362815276,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.021641740975592322
+        },
+        "2": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.28917878784086803,
+          "mean_difference": -0.014965205656215994,
+          "ci_lower": -0.015012503633994924,
+          "ci_upper": -0.014920239788486092,
+          "effect_size_dz": -27.863940232863712,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.043283481951184644
+        },
+        "4": {
+          "n_pairs": 500,
+          "n_groups": 500,
+          "baseline_mean": 0.304143993497084,
+          "intervened_mean": 0.2740566076505071,
+          "mean_difference": -0.030087385846576914,
+          "ci_lower": -0.030189955297220145,
+          "ci_upper": -0.02999062909382755,
+          "effect_size_dz": -25.88137958591751,
+          "signed_consistency_rate": 1.0,
+          "valid_resamples": 1000,
+          "requested_resamples": 1000,
+          "baseline_chose_positive_rate": 0.0,
+          "intervened_chose_positive_rate": 0.0,
+          "mean_relative_magnitude": 0.08656696390236929
+        }
+      }
+    }
+  },
+  "quality_controls": {
+    "activation_patch_mismatched_prompt": {
+      "0": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9798001282390489,
+        "min_valid_choice_mass": 0.9592677314594573,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "baseline": {
+      "0": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9797173943786959,
+        "min_valid_choice_mass": 0.9583890519556992,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "negative_steering": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9795032070853694,
+        "min_valid_choice_mass": 0.9580282215544859,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9792842299196247,
+        "min_valid_choice_mass": 0.9576597666306275,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9788320321801235,
+        "min_valid_choice_mass": 0.9569013313331305,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9778702660794085,
+        "min_valid_choice_mass": 0.9552971353602528,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "nuisance_steering_nuisance_made_hand": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9796862640307596,
+        "min_valid_choice_mass": 0.9583055731065042,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.979649687623562,
+        "min_valid_choice_mass": 0.9582111295360619,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9795590402228064,
+        "min_valid_choice_mass": 0.9579935553968504,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9793008618061663,
+        "min_valid_choice_mass": 0.9574267961489549,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "orthogonal": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9796896570295366,
+        "min_valid_choice_mass": 0.9585026424618304,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9796567481349814,
+        "min_valid_choice_mass": 0.9586053067310563,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9795761266341265,
+        "min_valid_choice_mass": 0.9587847782268166,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9793598995664545,
+        "min_valid_choice_mass": 0.9590399456056464,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "positive_steering": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9799267928099403,
+        "min_valid_choice_mass": 0.9587421789183554,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9801314225159331,
+        "min_valid_choice_mass": 0.959088302116517,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9805260117961498,
+        "min_valid_choice_mass": 0.95975862588178,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9812551126144069,
+        "min_valid_choice_mass": 0.9610086705777889,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "random_matched_norm": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.979924126049819,
+        "min_valid_choice_mass": 0.9587411837696429,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9801260710441568,
+        "min_valid_choice_mass": 0.9590883231858737,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9805154364432981,
+        "min_valid_choice_mass": 0.9597580550406669,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9812342812663257,
+        "min_valid_choice_mass": 0.9610069281828403,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "shuffled_label": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9797598380107594,
+        "min_valid_choice_mass": 0.9585962518296067,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9797987105766991,
+        "min_valid_choice_mass": 0.9587986842479449,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9798653303991118,
+        "min_valid_choice_mass": 0.9591865705169385,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9799511904088011,
+        "min_valid_choice_mass": 0.9598922764275735,
+        "chose_positive_rate": 0.0
+      }
+    },
+    "wrong_layer": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9825457802687506,
+        "min_valid_choice_mass": 0.9652724910028756,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9806135551334824,
+        "min_valid_choice_mass": 0.9591323306831012,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.984921667727396,
+        "min_valid_choice_mass": 0.9700297494892456,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.04414962928674647,
+        "min_valid_choice_mass": 0.01994078692089301,
+        "chose_positive_rate": 0.952
+      }
+    },
+    "wrong_token_position": {
+      "0.5": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9797264901196068,
+        "min_valid_choice_mass": 0.9584059120055497,
+        "chose_positive_rate": 0.0
+      },
+      "1": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9797355802612076,
+        "min_valid_choice_mass": 0.9584235448423671,
+        "chose_positive_rate": 0.0
+      },
+      "2": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.9797537173048558,
+        "min_valid_choice_mass": 0.958460270434975,
+        "chose_positive_rate": 0.0
+      },
+      "4": {
+        "n": 500,
+        "mean_valid_choice_mass": 0.979789932009083,
+        "min_valid_choice_mass": 0.9585303923402342,
+        "chose_positive_rate": 0.0
+      }
+    }
+  }
+}

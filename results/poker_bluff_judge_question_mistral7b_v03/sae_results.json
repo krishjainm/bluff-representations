@@ -1,0 +1,3695 @@
+{
+  "layer": 31,
+  "unsupervised": true,
+  "labels_used_for": "feature ranking on train+validation only, after the SAE was frozen",
+  "sae_config": {
+    "n_features": 32768,
+    "activation": "topk",
+    "k": 64,
+    "l1_coefficient": 0.001,
+    "tied_weights": false,
+    "learning_rate": 0.0003,
+    "batch_size": 1024,
+    "epochs": 60,
+    "seed": 0,
+    "normalize_inputs": true,
+    "dead_feature_threshold": 0.0
+  },
+  "expansion_factor": 8.0,
+  "training": {
+    "history": [
+      {
+        "epoch": 0,
+        "train_mse": 0.6274839360867778,
+        "validation_mse": 0.2964039444923401,
+        "validation_l1": 249.92723083496094
+      },
+      {
+        "epoch": 1,
+        "train_mse": 0.2133685307156655,
+        "validation_mse": 0.15805166959762573,
+        "validation_l1": 243.064697265625
+      },
+      {
+        "epoch": 2,
+        "train_mse": 0.13251210604944536,
+        "validation_mse": 0.11320982128381729,
+        "validation_l1": 240.36068725585938
+      },
+      {
+        "epoch": 3,
+        "train_mse": 0.10040521405396922,
+        "validation_mse": 0.0912022739648819,
+        "validation_l1": 237.95428466796875
+      },
+      {
+        "epoch": 4,
+        "train_mse": 0.0837457271352891,
+        "validation_mse": 0.0792161226272583,
+        "validation_l1": 236.09091186523438
+      },
+      {
+        "epoch": 5,
+        "train_mse": 0.07427707170286486,
+        "validation_mse": 0.07185424864292145,
+        "validation_l1": 232.6187744140625
+      },
+      {
+        "epoch": 6,
+        "train_mse": 0.0682221434770092,
+        "validation_mse": 0.06687917560338974,
+        "validation_l1": 229.4299774169922
+      },
+      {
+        "epoch": 7,
+        "train_mse": 0.06390330291563465,
+        "validation_mse": 0.06371089816093445,
+        "validation_l1": 227.64894104003906
+      },
+      {
+        "epoch": 8,
+        "train_mse": 0.06110374533361004,
+        "validation_mse": 0.06091401353478432,
+        "validation_l1": 226.6757049560547
+      },
+      {
+        "epoch": 9,
+        "train_mse": 0.059480123822727514,
+        "validation_mse": 0.06131616607308388,
+        "validation_l1": 226.38844299316406
+      },
+      {
+        "epoch": 10,
+        "train_mse": 0.0608871188615599,
+        "validation_mse": 0.062179479748010635,
+        "validation_l1": 226.81637573242188
+      },
+      {
+        "epoch": 11,
+        "train_mse": 0.06286320991573795,
+        "validation_mse": 0.06278915703296661,
+        "validation_l1": 227.04139709472656
+      },
+      {
+        "epoch": 12,
+        "train_mse": 0.06290151527331721,
+        "validation_mse": 0.06314146518707275,
+        "validation_l1": 226.40342712402344
+      },
+      {
+        "epoch": 13,
+        "train_mse": 0.06172478835909597,
+        "validation_mse": 0.06045471131801605,
+        "validation_l1": 225.51748657226562
+      },
+      {
+        "epoch": 14,
+        "train_mse": 0.06223730622760711,
+        "validation_mse": 0.061611831188201904,
+        "validation_l1": 226.19577026367188
+      },
+      {
+        "epoch": 15,
+        "train_mse": 0.061634418704817374,
+        "validation_mse": 0.06041402742266655,
+        "validation_l1": 225.64138793945312
+      },
+      {
+        "epoch": 16,
+        "train_mse": 0.06309281181423895,
+        "validation_mse": 0.0625763088464737,
+        "validation_l1": 227.79766845703125
+      },
+      {
+        "epoch": 17,
+        "train_mse": 0.060315815191115105,
+        "validation_mse": 0.061973508447408676,
+        "validation_l1": 228.1131134033203
+      },
+      {
+        "epoch": 18,
+        "train_mse": 0.058490446017634486,
+        "validation_mse": 0.06296458095312119,
+        "validation_l1": 229.37188720703125
+      },
+      {
+        "epoch": 19,
+        "train_mse": 0.06021205672333317,
+        "validation_mse": 0.05960901454091072,
+        "validation_l1": 227.40602111816406
+      },
+      {
+        "epoch": 20,
+        "train_mse": 0.06053090023417627,
+        "validation_mse": 0.06404414772987366,
+        "validation_l1": 230.9107666015625
+      },
+      {
+        "epoch": 21,
+        "train_mse": 0.05813686093015055,
+        "validation_mse": 0.06094563379883766,
+        "validation_l1": 228.73828125
+      },
+      {
+        "epoch": 22,
+        "train_mse": 0.05759670525308578,
+        "validation_mse": 0.061812352389097214,
+        "validation_l1": 229.35191345214844
+      },
+      {
+        "epoch": 23,
+        "train_mse": 0.058035466098977674,
+        "validation_mse": 0.06099139153957367,
+        "validation_l1": 229.80665588378906
+      },
+      {
+        "epoch": 24,
+        "train_mse": 0.05311369114825802,
+        "validation_mse": 0.04923993721604347,
+        "validation_l1": 221.5863800048828
+      },
+      {
+        "epoch": 25,
+        "train_mse": 0.04809269393163343,
+        "validation_mse": 0.04930642992258072,
+        "validation_l1": 222.60975646972656
+      },
+      {
+        "epoch": 26,
+        "train_mse": 0.05021830443893709,
+        "validation_mse": 0.05094848945736885,
+        "validation_l1": 225.11395263671875
+      },
+      {
+        "epoch": 27,
+        "train_mse": 0.04932560375140559,
+        "validation_mse": 0.049079373478889465,
+        "validation_l1": 223.54750061035156
+      },
+      {
+        "epoch": 28,
+        "train_mse": 0.04616306133327946,
+        "validation_mse": 0.04520605131983757,
+        "validation_l1": 220.7809295654297
+      },
+      {
+        "epoch": 29,
+        "train_mse": 0.044921153495388645,
+        "validation_mse": 0.047184672206640244,
+        "validation_l1": 224.27210998535156
+      },
+      {
+        "epoch": 30,
+        "train_mse": 0.04464236418566396,
+        "validation_mse": 0.048394449055194855,
+        "validation_l1": 225.31044006347656
+      },
+      {
+        "epoch": 31,
+        "train_mse": 0.047201338314240976,
+        "validation_mse": 0.04809300974011421,
+        "validation_l1": 227.67596435546875
+      },
+      {
+        "epoch": 32,
+        "train_mse": 0.04591611111837049,
+        "validation_mse": 0.04406857118010521,
+        "validation_l1": 223.34776306152344
+      },
+      {
+        "epoch": 33,
+        "train_mse": 0.04075107242791883,
+        "validation_mse": 0.04216958209872246,
+        "validation_l1": 222.58447265625
+      },
+      {
+        "epoch": 34,
+        "train_mse": 0.041961219642431505,
+        "validation_mse": 0.043887872248888016,
+        "validation_l1": 226.69224548339844
+      },
+      {
+        "epoch": 35,
+        "train_mse": 0.040473255418962045,
+        "validation_mse": 0.0414283461868763,
+        "validation_l1": 223.84115600585938
+      },
+      {
+        "epoch": 36,
+        "train_mse": 0.040983424071342714,
+        "validation_mse": 0.044819775968790054,
+        "validation_l1": 227.88381958007812
+      },
+      {
+        "epoch": 37,
+        "train_mse": 0.04216527998928101,
+        "validation_mse": 0.04490093141794205,
+        "validation_l1": 228.0255889892578
+      },
+      {
+        "epoch": 38,
+        "train_mse": 0.04151826448017551,
+        "validation_mse": 0.040886376053094864,
+        "validation_l1": 224.14517211914062
+      },
+      {
+        "epoch": 39,
+        "train_mse": 0.03966477717603407,
+        "validation_mse": 0.040779706090688705,
+        "validation_l1": 226.35629272460938
+      },
+      {
+        "epoch": 40,
+        "train_mse": 0.038358753246645776,
+        "validation_mse": 0.03915657475590706,
+        "validation_l1": 225.09564208984375
+      },
+      {
+        "epoch": 41,
+        "train_mse": 0.03731380523212494,
+        "validation_mse": 0.03916027024388313,
+        "validation_l1": 225.60690307617188
+      },
+      {
+        "epoch": 42,
+        "train_mse": 0.037644102808929256,
+        "validation_mse": 0.03919104486703873,
+        "validation_l1": 226.89111328125
+      },
+      {
+        "epoch": 43,
+        "train_mse": 0.0379487965856829,
+        "validation_mse": 0.040336184203624725,
+        "validation_l1": 228.6039276123047
+      },
+      {
+        "epoch": 44,
+        "train_mse": 0.03854649369755099,
+        "validation_mse": 0.04022940993309021,
+        "validation_l1": 228.87094116210938
+      },
+      {
+        "epoch": 45,
+        "train_mse": 0.038999619863687024,
+        "validation_mse": 0.038993798196315765,
+        "validation_l1": 227.6936492919922
+      },
+      {
+        "epoch": 46,
+        "train_mse": 0.03616512266378249,
+        "validation_mse": 0.03831398859620094,
+        "validation_l1": 227.46705627441406
+      },
+      {
+        "epoch": 47,
+        "train_mse": 0.03593322526543371,
+        "validation_mse": 0.03799237683415413,
+        "validation_l1": 228.0684814453125
+      },
+      {
+        "epoch": 48,
+        "train_mse": 0.03642176944882639,
+        "validation_mse": 0.03880320489406586,
+        "validation_l1": 229.9012908935547
+      },
+      {
+        "epoch": 49,
+        "train_mse": 0.03616973481351329,
+        "validation_mse": 0.03838323429226875,
+        "validation_l1": 230.1112823486328
+      },
+      {
+        "epoch": 50,
+        "train_mse": 0.036738002372364846,
+        "validation_mse": 0.03726887330412865,
+        "validation_l1": 229.13079833984375
+      },
+      {
+        "epoch": 51,
+        "train_mse": 0.036190937603673624,
+        "validation_mse": 0.037542734295129776,
+        "validation_l1": 230.04824829101562
+      },
+      {
+        "epoch": 52,
+        "train_mse": 0.036077732640889384,
+        "validation_mse": 0.03640294447541237,
+        "validation_l1": 229.52389526367188
+      },
+      {
+        "epoch": 53,
+        "train_mse": 0.034003974449250005,
+        "validation_mse": 0.03603686764836311,
+        "validation_l1": 229.5542755126953
+      },
+      {
+        "epoch": 54,
+        "train_mse": 0.034482249329167027,
+        "validation_mse": 0.03601928800344467,
+        "validation_l1": 230.22865295410156
+      },
+      {
+        "epoch": 55,
+        "train_mse": 0.035207594234135844,
+        "validation_mse": 0.03618749603629112,
+        "validation_l1": 231.05538940429688
+      },
+      {
+        "epoch": 56,
+        "train_mse": 0.0348128181311392,
+        "validation_mse": 0.03616999089717865,
+        "validation_l1": 231.15228271484375
+      },
+      {
+        "epoch": 57,
+        "train_mse": 0.034029745286510836,
+        "validation_mse": 0.03528519347310066,
+        "validation_l1": 231.4583282470703
+      },
+      {
+        "epoch": 58,
+        "train_mse": 0.03338035881038635,
+        "validation_mse": 0.035198479890823364,
+        "validation_l1": 232.32933044433594
+      },
+      {
+        "epoch": 59,
+        "train_mse": 0.0346567333946305,
+        "validation_mse": 0.03725907579064369,
+        "validation_l1": 233.86085510253906
+      }
+    ],
+    "device": "cuda",
+    "selected_epoch": 58,
+    "selected_on": "validation reconstruction MSE",
+    "best_validation_mse": 0.035198479890823364,
+    "labels_used_in_training": false,
+    "expansion_factor": 8.0,
+    "config": {
+      "n_features": 32768,
+      "activation": "topk",
+      "k": 64,
+      "l1_coefficient": 0.001,
+      "tied_weights": false,
+      "learning_rate": 0.0003,
+      "batch_size": 1024,
+      "epochs": 60,
+      "seed": 0,
+      "normalize_inputs": true,
+      "dead_feature_threshold": 0.0
+    }
+  },
+  "input_normalizer": {
+    "scale": 2.1393145644305185,
+    "n_train": 31241,
+    "fitted_on": "train partition only"
+  },
+  "diagnostics": {
+    "train": {
+      "partition": "train",
+      "n_samples": 31241,
+      "n_features": 32768,
+      "input_dim": 4096,
+      "expansion_factor": 8.0,
+      "reconstruction_mse": 0.03310897946357727,
+      "fraction_variance_unexplained": 0.03139431787706358,
+      "fraction_variance_explained": 0.9686056821229364,
+      "l0_mean": 64.0,
+      "l0_std": 0.0,
+      "device": "cuda:0",
+      "dead_feature_fraction": 0.580963134765625,
+      "n_dead_features": 19037,
+      "activation_frequency": {
+        "mean": 0.001953125,
+        "median": 0.0,
+        "max": 0.5197336673736572,
+        "min": 0.0
+      },
+      "code_magnitude_mean": 3.6303200721740723
+    },
+    "validation": {
+      "partition": "validation",
+      "n_samples": 4463,
+      "n_features": 32768,
+      "input_dim": 4096,
+      "expansion_factor": 8.0,
+      "reconstruction_mse": 0.035198479890823364,
+      "fraction_variance_unexplained": 0.03347762657048967,
+      "fraction_variance_explained": 0.9665223734295103,
+      "l0_mean": 64.0,
+      "l0_std": 0.0,
+      "device": "cuda:0",
+      "dead_feature_fraction": 0.75396728515625,
+      "n_dead_features": 24706,
+      "activation_frequency": {
+        "mean": 0.0019531248835846782,
+        "median": 0.0,
+        "max": 0.5256553888320923,
+        "min": 0.0
+      },
+      "code_magnitude_mean": 3.630145788192749
+    },
+    "test": {
+      "partition": "test",
+      "n_samples": 8927,
+      "n_features": 32768,
+      "input_dim": 4096,
+      "expansion_factor": 8.0,
+      "reconstruction_mse": 0.03512725979089737,
+      "fraction_variance_unexplained": 0.03313176808144108,
+      "fraction_variance_explained": 0.9668682319185589,
+      "l0_mean": 63.999996185302734,
+      "l0_std": 0.0,
+      "device": "cuda:0",
+      "dead_feature_fraction": 0.613494873046875,
+      "n_dead_features": 20103,
+      "activation_frequency": {
+        "mean": 0.001953125,
+        "median": 0.0,
+        "max": 0.5201075077056885,
+        "min": 0.0
+      },
+      "code_magnitude_mean": 3.632449150085449
+    }
+  },
+  "feature_ranking_top": [
+    {
+      "feature": 31053,
+      "activation_frequency": 0.46865897378444993,
+      "auroc": 0.7228286521680676,
+      "status": "ranked",
+      "mean_active_positive": 11.858316421508789,
+      "mean_active_negative": 4.734359264373779,
+      "abs_auroc_gap": 0.22282865216806758
+    },
+    {
+      "feature": 21241,
+      "activation_frequency": 0.43398498767645083,
+      "auroc": 0.7024716652359312,
+      "status": "ranked",
+      "mean_active_positive": 3.857872247695923,
+      "mean_active_negative": 1.5831871032714844,
+      "abs_auroc_gap": 0.2024716652359312
+    },
+    {
+      "feature": 1410,
+      "activation_frequency": 0.4780136679363657,
+      "auroc": 0.30504644206096376,
+      "status": "ranked",
+      "mean_active_positive": 1.501540184020996,
+      "mean_active_negative": 6.682338237762451,
+      "abs_auroc_gap": 0.19495355793903624
+    },
+    {
+      "feature": 31514,
+      "activation_frequency": 0.3625644185525431,
+      "auroc": 0.3307990801592933,
+      "status": "ranked",
+      "mean_active_positive": 0.30985027551651,
+      "mean_active_negative": 2.4660239219665527,
+      "abs_auroc_gap": 0.16920091984070668
+    },
+    {
+      "feature": 29307,
+      "activation_frequency": 0.2738628725072821,
+      "auroc": 0.6571701513209499,
+      "status": "ranked",
+      "mean_active_positive": 1.8428549766540527,
+      "mean_active_negative": 0.6613185405731201,
+      "abs_auroc_gap": 0.1571701513209499
+    },
+    {
+      "feature": 17195,
+      "activation_frequency": 0.297109567555456,
+      "auroc": 0.6491281730738813,
+      "status": "ranked",
+      "mean_active_positive": 1.5371103286743164,
+      "mean_active_negative": 0.6449998617172241,
+      "abs_auroc_gap": 0.14912817307388126
+    },
+    {
+      "feature": 21029,
+      "activation_frequency": 0.4612928523414743,
+      "auroc": 0.36725317554531506,
+      "status": "ranked",
+      "mean_active_positive": 2.61956787109375,
+      "mean_active_negative": 7.3667755126953125,
+      "abs_auroc_gap": 0.13274682445468494
+    },
+    {
+      "feature": 19780,
+      "activation_frequency": 0.2369482410934349,
+      "auroc": 0.3806232983054772,
+      "status": "ranked",
+      "mean_active_positive": 0.1330179125070572,
+      "mean_active_negative": 1.1687922477722168,
+      "abs_auroc_gap": 0.1193767016945228
+    },
+    {
+      "feature": 17136,
+      "activation_frequency": 0.1836208828142505,
+      "auroc": 0.6184535003995635,
+      "status": "ranked",
+      "mean_active_positive": 1.1751328706741333,
+      "mean_active_negative": 0.38901421427726746,
+      "abs_auroc_gap": 0.11845350039956348
+    },
+    {
+      "feature": 17577,
+      "activation_frequency": 0.2683732915079543,
+      "auroc": 0.38367828820225575,
+      "status": "ranked",
+      "mean_active_positive": 0.1647862195968628,
+      "mean_active_negative": 1.2972941398620605,
+      "abs_auroc_gap": 0.11632171179774425
+    },
+    {
+      "feature": 11529,
+      "activation_frequency": 0.5204738964821869,
+      "auroc": 0.6102616858602711,
+      "status": "ranked",
+      "mean_active_positive": 8.900171279907227,
+      "mean_active_negative": 5.425980567932129,
+      "abs_auroc_gap": 0.11026168586027107
+    },
+    {
+      "feature": 16234,
+      "activation_frequency": 0.30761259242661887,
+      "auroc": 0.6024283864979189,
+      "status": "ranked",
+      "mean_active_positive": 0.6894751191139221,
+      "mean_active_negative": 0.3972528874874115,
+      "abs_auroc_gap": 0.10242838649791886
+    },
+    {
+      "feature": 17176,
+      "activation_frequency": 0.3462637239524983,
+      "auroc": 0.5994773906044534,
+      "status": "ranked",
+      "mean_active_positive": 0.895679235458374,
+      "mean_active_negative": 0.5450589060783386,
+      "abs_auroc_gap": 0.09947739060445338
+    },
+    {
+      "feature": 23959,
+      "activation_frequency": 0.2019661662558817,
+      "auroc": 0.4006520591672041,
+      "status": "ranked",
+      "mean_active_positive": 0.0751885324716568,
+      "mean_active_negative": 0.8732019066810608,
+      "abs_auroc_gap": 0.09934794083279591
+    },
+    {
+      "feature": 12485,
+      "activation_frequency": 0.2155780864889088,
+      "auroc": 0.4042620291873638,
+      "status": "ranked",
+      "mean_active_positive": 0.09366350620985031,
+      "mean_active_negative": 0.5834887027740479,
+      "abs_auroc_gap": 0.09573797081263619
+    },
+    {
+      "feature": 13353,
+      "activation_frequency": 0.15466054223616402,
+      "auroc": 0.5930969601229211,
+      "status": "ranked",
+      "mean_active_positive": 0.5597824454307556,
+      "mean_active_negative": 0.1975167989730835,
+      "abs_auroc_gap": 0.09309696012292112
+    },
+    {
+      "feature": 26254,
+      "activation_frequency": 0.2787362760475017,
+      "auroc": 0.5887453802161634,
+      "status": "ranked",
+      "mean_active_positive": 1.2004886865615845,
+      "mean_active_negative": 0.6495356559753418,
+      "abs_auroc_gap": 0.0887453802161634
+    },
+    {
+      "feature": 12301,
+      "activation_frequency": 0.48551982971095675,
+      "auroc": 0.5849960016694312,
+      "status": "ranked",
+      "mean_active_positive": 8.549715042114258,
+      "mean_active_negative": 6.668766021728516,
+      "abs_auroc_gap": 0.08499600166943122
+    },
+    {
+      "feature": 26732,
+      "activation_frequency": 0.18580551198745238,
+      "auroc": 0.4151296201882533,
+      "status": "ranked",
+      "mean_active_positive": 0.08085618913173676,
+      "mean_active_negative": 0.5574029088020325,
+      "abs_auroc_gap": 0.08487037981174672
+    },
+    {
+      "feature": 11579,
+      "activation_frequency": 0.40583688102173426,
+      "auroc": 0.4183173204642629,
+      "status": "ranked",
+      "mean_active_positive": 1.1891851425170898,
+      "mean_active_negative": 2.2483346462249756,
+      "abs_auroc_gap": 0.0816826795357371
+    },
+    {
+      "feature": 3754,
+      "activation_frequency": 0.4482130853685862,
+      "auroc": 0.4185650732793609,
+      "status": "ranked",
+      "mean_active_positive": 1.2324875593185425,
+      "mean_active_negative": 1.8903920650482178,
+      "abs_auroc_gap": 0.08143492672063912
+    },
+    {
+      "feature": 2653,
+      "activation_frequency": 0.3727593546941519,
+      "auroc": 0.5811576571220791,
+      "status": "ranked",
+      "mean_active_positive": 1.8828916549682617,
+      "mean_active_negative": 1.1901272535324097,
+      "abs_auroc_gap": 0.08115765712207912
+    },
+    {
+      "feature": 16283,
+      "activation_frequency": 0.36259242661886626,
+      "auroc": 0.41895201837057205,
+      "status": "ranked",
+      "mean_active_positive": 0.569341778755188,
+      "mean_active_negative": 1.1851693391799927,
+      "abs_auroc_gap": 0.08104798162942795
+    },
+    {
+      "feature": 67,
+      "activation_frequency": 0.4042964373739637,
+      "auroc": 0.4193611838985818,
+      "status": "ranked",
+      "mean_active_positive": 2.3296191692352295,
+      "mean_active_negative": 4.624819278717041,
+      "abs_auroc_gap": 0.08063881610141821
+    },
+    {
+      "feature": 28427,
+      "activation_frequency": 0.32492157741429534,
+      "auroc": 0.42459562175163734,
+      "status": "ranked",
+      "mean_active_positive": 0.7327519059181213,
+      "mean_active_negative": 1.4493112564086914,
+      "abs_auroc_gap": 0.07540437824836266
+    },
+    {
+      "feature": 22950,
+      "activation_frequency": 0.24509858839345733,
+      "auroc": 0.5751780735469948,
+      "status": "ranked",
+      "mean_active_positive": 1.1377731561660767,
+      "mean_active_negative": 0.788703441619873,
+      "abs_auroc_gap": 0.0751780735469948
+    },
+    {
+      "feature": 20325,
+      "activation_frequency": 0.3367129733363209,
+      "auroc": 0.4262403384911707,
+      "status": "ranked",
+      "mean_active_positive": 0.38054606318473816,
+      "mean_active_negative": 0.6716316938400269,
+      "abs_auroc_gap": 0.07375966150882929
+    },
+    {
+      "feature": 24890,
+      "activation_frequency": 0.27330271118082006,
+      "auroc": 0.42885116679536095,
+      "status": "ranked",
+      "mean_active_positive": 0.20863810181617737,
+      "mean_active_negative": 0.40964698791503906,
+      "abs_auroc_gap": 0.07114883320463905
+    },
+    {
+      "feature": 25668,
+      "activation_frequency": 0.15323213085368587,
+      "auroc": 0.43022071465508127,
+      "status": "ranked",
+      "mean_active_positive": 0.06755933165550232,
+      "mean_active_negative": 0.5921390652656555,
+      "abs_auroc_gap": 0.06977928534491873
+    },
+    {
+      "feature": 13285,
+      "activation_frequency": 0.1653316155052655,
+      "auroc": 0.4309968375532841,
+      "status": "ranked",
+      "mean_active_positive": 0.11514917761087418,
+      "mean_active_negative": 0.6611135601997375,
+      "abs_auroc_gap": 0.0690031624467159
+    },
+    {
+      "feature": 29397,
+      "activation_frequency": 0.1355870490701322,
+      "auroc": 0.4316642763408112,
+      "status": "ranked",
+      "mean_active_positive": 0.05480464920401573,
+      "mean_active_negative": 0.5103243589401245,
+      "abs_auroc_gap": 0.06833572365918877
+    },
+    {
+      "feature": 15311,
+      "activation_frequency": 0.18233251176338786,
+      "auroc": 0.43283429523784356,
+      "status": "ranked",
+      "mean_active_positive": 0.12939663231372833,
+      "mean_active_negative": 0.4979594945907593,
+      "abs_auroc_gap": 0.06716570476215644
+    },
+    {
+      "feature": 20591,
+      "activation_frequency": 0.26476025095227423,
+      "auroc": 0.5671249626139465,
+      "status": "ranked",
+      "mean_active_positive": 0.9057575464248657,
+      "mean_active_negative": 0.5952895283699036,
+      "abs_auroc_gap": 0.06712496261394651
+    },
+    {
+      "feature": 24851,
+      "activation_frequency": 0.20633542460228546,
+      "auroc": 0.43362933022166333,
+      "status": "ranked",
+      "mean_active_positive": 0.19519348442554474,
+      "mean_active_negative": 0.7468165755271912,
+      "abs_auroc_gap": 0.06637066977833667
+    },
+    {
+      "feature": 21069,
+      "activation_frequency": 0.1543244454402868,
+      "auroc": 0.43457144921913476,
+      "status": "ranked",
+      "mean_active_positive": 0.08708823472261429,
+      "mean_active_negative": 0.4366310238838196,
+      "abs_auroc_gap": 0.06542855078086524
+    },
+    {
+      "feature": 12545,
+      "activation_frequency": 0.34206251400403315,
+      "auroc": 0.5652926977488563,
+      "status": "ranked",
+      "mean_active_positive": 4.989334583282471,
+      "mean_active_negative": 3.034470558166504,
+      "abs_auroc_gap": 0.06529269774885627
+    },
+    {
+      "feature": 7888,
+      "activation_frequency": 0.17359399507058032,
+      "auroc": 0.5649852963168266,
+      "status": "ranked",
+      "mean_active_positive": 0.5642460584640503,
+      "mean_active_negative": 0.2905876338481903,
+      "abs_auroc_gap": 0.06498529631682659
+    },
+    {
+      "feature": 30371,
+      "activation_frequency": 0.24543468518933453,
+      "auroc": 0.5647388325791415,
+      "status": "ranked",
+      "mean_active_positive": 1.956108808517456,
+      "mean_active_negative": 1.2505457401275635,
+      "abs_auroc_gap": 0.06473883257914148
+    },
+    {
+      "feature": 2520,
+      "activation_frequency": 0.32382926282769436,
+      "auroc": 0.4361574104280487,
+      "status": "ranked",
+      "mean_active_positive": 0.6012899875640869,
+      "mean_active_negative": 1.0708835124969482,
+      "abs_auroc_gap": 0.06384258957195132
+    },
+    {
+      "feature": 5315,
+      "activation_frequency": 0.20709164239300917,
+      "auroc": 0.4373702553413526,
+      "status": "ranked",
+      "mean_active_positive": 0.22123774886131287,
+      "mean_active_negative": 0.5511502027511597,
+      "abs_auroc_gap": 0.0626297446586474
+    }
+  ],
+  "n_features_too_rare_to_rank": 32194,
+  "selected_features": [
+    31053,
+    21241,
+    1410,
+    31514,
+    29307,
+    17195,
+    21029,
+    19780,
+    17136,
+    17577
+  ],
+  "held_out_feature_evaluation": {
+    "selection_partition": "train+validation",
+    "evaluation_partition": "test",
+    "n_test": 8927,
+    "features": [
+      {
+        "feature": 31053,
+        "activation_frequency": 0.4651058586311191,
+        "status": "ok",
+        "auroc": 0.7259230730937342
+      },
+      {
+        "feature": 21241,
+        "activation_frequency": 0.44135767895149547,
+        "status": "ok",
+        "auroc": 0.7180495607640177
+      },
+      {
+        "feature": 1410,
+        "activation_frequency": 0.4759717710317016,
+        "status": "ok",
+        "auroc": 0.3053643472402113
+      },
+      {
+        "feature": 31514,
+        "activation_frequency": 0.366640528733057,
+        "status": "ok",
+        "auroc": 0.32534742334239874
+      },
+      {
+        "feature": 29307,
+        "activation_frequency": 0.2830738209924947,
+        "status": "ok",
+        "auroc": 0.6838457917866348
+      },
+      {
+        "feature": 17195,
+        "activation_frequency": 0.29001904335162987,
+        "status": "ok",
+        "auroc": 0.648009478604847
+      },
+      {
+        "feature": 21029,
+        "activation_frequency": 0.4611851685896718,
+        "status": "ok",
+        "auroc": 0.35991538769959536
+      },
+      {
+        "feature": 19780,
+        "activation_frequency": 0.23837795451999552,
+        "status": "ok",
+        "auroc": 0.37827319811348054
+      },
+      {
+        "feature": 17136,
+        "activation_frequency": 0.18673686568836115,
+        "status": "ok",
+        "auroc": 0.62583588365948
+      },
+      {
+        "feature": 17577,
+        "activation_frequency": 0.2704155931443934,
+        "status": "ok",
+        "auroc": 0.3815397242538667
+      }
+    ],
+    "sae_unchanged_by_evaluation": true
+  },
+  "feature_examples": [
+    {
+      "feature": 31053,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.46865897378444993,
+      "top_examples": [
+        {
+          "sample_id": "pk017733",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 55.91524887084961,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk010078",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 55.84318923950195,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk030205",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 53.77479553222656,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk017808",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 53.1854248046875,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk007431",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 53.123836517333984,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk032657",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 53.02744674682617,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk043895",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 52.74140930175781,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk017645",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "high_card",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 52.6223258972168,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk003644",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 51.949947357177734,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk031310",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 51.73331069946289,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000006",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044621",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000009",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000010",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000030",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000031",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000033",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000034",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "trips",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 22.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000042",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 2.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000045",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.2778342198051754,
+        "inactive": 0.07079226187338569
+      }
+    },
+    {
+      "feature": 21241,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.43398498767645083,
+      "top_examples": [
+        {
+          "sample_id": "pk000706",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 80.0,
+          "activation": 19.239028930664062,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk027219",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 18.160892486572266,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk028605",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 38.0,
+          "activation": 17.687427520751953,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk026538",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 17.64788246154785,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk012385",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 81.0,
+          "activation": 17.607175827026367,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk042115",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 58.0,
+          "activation": 17.510009765625,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk034520",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 17.47713851928711,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk020699",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 58.0,
+          "activation": 17.334758758544922,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk039410",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 17.307851791381836,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk014001",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 58.0,
+          "activation": 17.29131317138672,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000001",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 4.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044621",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000004",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000009",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044596",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000029",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000030",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000031",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000033",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000034",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "trips",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 22.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.2812520167796063,
+        "inactive": 0.08085506457518928
+      }
+    },
+    {
+      "feature": 1410,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.4780136679363657,
+      "top_examples": [
+        {
+          "sample_id": "pk003908",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "full_house",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 10.0,
+          "activation": 50.77280044555664,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk042131",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 80.0,
+          "activation": 49.553504943847656,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk021154",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "full_house",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 49.15646743774414,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk025190",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "quads",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 29.0,
+          "activation": 47.35233688354492,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk003278",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "quads",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 25.0,
+          "activation": 47.0418701171875,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk013220",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 81.0,
+          "activation": 47.02813720703125,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk035612",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "HJ",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 85.0,
+          "activation": 46.61680603027344,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk028070",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "trips",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 80.0,
+          "activation": 46.35304260253906,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk014590",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 81.0,
+          "activation": 46.33502197265625,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk012619",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "trips",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 83.0,
+          "activation": 46.16318130493164,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk044574",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000001",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 4.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044548",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 14.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044615",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044610",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000004",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044545",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 4.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000027",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 18.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000029",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000015",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 31.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.061815198921896054,
+        "inactive": 0.2649031496485486
+      }
+    },
+    {
+      "feature": 31514,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.3625644185525431,
+      "top_examples": [
+        {
+          "sample_id": "pk027711",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 10.0,
+          "activation": 26.004091262817383,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk008269",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "SB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 75.0,
+          "activation": 25.985633850097656,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk022376",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 42.0,
+          "activation": 25.63947296142578,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk001455",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 25.425466537475586,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk042786",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "SB",
+          "made_hand": "two_pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 25.412582397460938,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk037462",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 48.0,
+          "activation": 25.37680435180664,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk043700",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 16.0,
+          "activation": 25.307682037353516,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk017559",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 29.0,
+          "activation": 25.283355712890625,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk010008",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 48.0,
+          "activation": 25.26833152770996,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk007714",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 16.0,
+          "activation": 25.109460830688477,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk044554",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000025",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000023",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "trips",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 38.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000022",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 22.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000018",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 39.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000017",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000013",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000011",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000006",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044574",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.043646195442255696,
+        "inactive": 0.2384551166571466
+      }
+    },
+    {
+      "feature": 29307,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.2738628725072821,
+      "top_examples": [
+        {
+          "sample_id": "pk019620",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 13.231608390808105,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk003365",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 13.108169555664062,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk004665",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 13.01639461517334,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk019185",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 4.0,
+          "activation": 12.980413436889648,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk005493",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 16.0,
+          "activation": 12.758326530456543,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk025845",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 9.0,
+          "activation": 12.658502578735352,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk037655",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 13.0,
+          "activation": 12.603998184204102,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk012733",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 11.0,
+          "activation": 12.597247123718262,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk028046",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "high_card",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 3.0,
+          "activation": 12.589373588562012,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk036876",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 3.0,
+          "activation": 12.580021858215332,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000009",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044621",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000010",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000031",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000033",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000034",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "trips",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 22.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000041",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 37.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000042",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 2.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000045",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000047",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.3191859275925547,
+        "inactive": 0.11073825503355705
+      }
+    },
+    {
+      "feature": 17195,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.297109567555456,
+      "top_examples": [
+        {
+          "sample_id": "pk030246",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 13.251060485839844,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk015321",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 13.172938346862793,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk031922",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.652575492858887,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk039568",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.320237159729004,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk026569",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.320237159729004,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk039849",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.236617088317871,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk004949",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.19943618774414,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk008866",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 10.0,
+          "activation": 12.011412620544434,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk039361",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.816182136535645,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk042805",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "high_card",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.74250602722168,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000004",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044621",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044615",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044610",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044596",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044580",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044576",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 10.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000026",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 3.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000027",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 18.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000030",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.3019419306184012,
+        "inactive": 0.11113324832642653
+      }
+    },
+    {
+      "feature": 21029,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.4612928523414743,
+      "top_examples": [
+        {
+          "sample_id": "pk033996",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "HJ",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 52.87082290649414,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk019423",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 52.19624328613281,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk021450",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 51.55311584472656,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk032386",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 51.25661849975586,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk020031",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 51.204246520996094,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk042218",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "HJ",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 50.90236282348633,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk031064",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 50.377498626708984,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk010756",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 50.318870544433594,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk024938",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 49.389652252197266,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk033339",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 3.0,
+          "activation": 49.194183349609375,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000018",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 39.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000017",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000011",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000009",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000006",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044574",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk011344",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "trips",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk011343",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 32.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk011337",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk011336",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 25.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.1013357619914997,
+        "inactive": 0.2247582406155766
+      }
+    },
+    {
+      "feature": 19780,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.2369482410934349,
+      "top_examples": [
+        {
+          "sample_id": "pk035764",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 9.0,
+          "activation": 13.835742950439453,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk019561",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 9.0,
+          "activation": 13.213052749633789,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk007052",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 48.0,
+          "activation": 13.02436351776123,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk031340",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 9.0,
+          "activation": 12.926103591918945,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk022822",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 62.0,
+          "activation": 12.89112377166748,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk018415",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 9.0,
+          "activation": 12.856435775756836,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk005922",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 10.0,
+          "activation": 12.781902313232422,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk016344",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 19.0,
+          "activation": 12.774576187133789,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk020131",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 25.0,
+          "activation": 12.635110855102539,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk012473",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "trips",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 31.0,
+          "activation": 12.584222793579102,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk044574",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000001",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 4.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044621",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044554",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044610",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044596",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000004",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000015",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 31.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000014",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "UTG",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 4.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000013",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.028486997635933806,
+        "inactive": 0.21109235060930848
+      }
+    },
+    {
+      "feature": 17136,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.1836208828142505,
+      "top_examples": [
+        {
+          "sample_id": "pk003480",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.406269073486328,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk002214",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.201472282409668,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk043497",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.109046936035156,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk010093",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 12.075011253356934,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk039725",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.999787330627441,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk005677",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.936593055725098,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk019176",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.842836380004883,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk043698",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.725372314453125,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk006070",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "high_card",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.718377113342285,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk017773",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 11.632404327392578,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000010",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044621",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 7.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000033",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "full_house",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 13.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000034",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "trips",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 22.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000041",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 37.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000042",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 2.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000045",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000047",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "rainbow",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000048",
+          "label": 0,
+          "action": "raise",
+          "street": "flop",
+          "position": "HJ",
+          "made_hand": "two_pair",
+          "board_texture": "rainbow",
+          "board_paired": "True",
+          "bet_size": 10.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000051",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.3425869432580842,
+        "inactive": 0.12851653629751614
+      }
+    },
+    {
+      "feature": 17577,
+      "interpretation": "not assigned; requires human inspection",
+      "activation_frequency": 0.2683732915079543,
+      "top_examples": [
+        {
+          "sample_id": "pk035040",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 18.383682250976562,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk042696",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 17.51948356628418,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk002777",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 16.487016677856445,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk024242",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BB",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 16.277692794799805,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk007300",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 16.088180541992188,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk001276",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 16.07183074951172,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk024627",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 15.873641014099121,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk038624",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "two_pair",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 15.835314750671387,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk022396",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "two_pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 3.0,
+          "activation": 15.616172790527344,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000799",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "pair",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 15.599130630493164,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "contrast_examples": [
+        {
+          "sample_id": "pk000001",
+          "label": 1,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 4.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000004",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044615",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk044610",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "HJ",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000006",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "True",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000029",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BB",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 5.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000031",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "BTN",
+          "made_hand": "pair",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 0.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000035",
+          "label": 1,
+          "action": "raise",
+          "street": "river",
+          "position": "HJ",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 8.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000041",
+          "label": 0,
+          "action": "raise",
+          "street": "turn",
+          "position": "CO",
+          "made_hand": "straight",
+          "board_texture": "two_tone",
+          "board_paired": "False",
+          "bet_size": 37.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        },
+        {
+          "sample_id": "pk000042",
+          "label": 0,
+          "action": "raise",
+          "street": "river",
+          "position": "UTG",
+          "made_hand": "flush",
+          "board_texture": "monotone",
+          "board_paired": "False",
+          "bet_size": 2.0,
+          "activation": 0.0,
+          "statement_preview": "You are a specialist in playing 6-handed No Limit Texas Holdem. The following will be a game scenario and you need to make the optimal decision.\n\nHere is a game summary:\n\nThe small blind is 0.5 chips and the big blind is 1 chips. Everyone s"
+        }
+      ],
+      "label_means": {
+        "active": 0.05499895637653934,
+        "inactive": 0.20921062705765256
+      }
+    }
+  ],
+  "sae_frozen_before_evaluation": true,
+  "sae_unchanged_after_evaluation": true,
+  "seed_stability": {
+    "seeds": [
+      0,
+      1,
+      2
+    ],
+    "n_pairs": 3,
+    "pairs": [
+      {
+        "seeds": [
+          0,
+          1
+        ],
+        "mean_max_cosine": 0.10077464580535889,
+        "median_max_cosine": 0.08806180953979492,
+        "fraction_above_0.9": 0.000244140625
+      },
+      {
+        "seeds": [
+          0,
+          2
+        ],
+        "mean_max_cosine": 0.09942717850208282,
+        "median_max_cosine": 0.08713246881961823,
+        "fraction_above_0.9": 0.000152587890625
+      },
+      {
+        "seeds": [
+          1,
+          2
+        ],
+        "mean_max_cosine": 0.09963303059339523,
+        "median_max_cosine": 0.0869382992386818,
+        "fraction_above_0.9": 0.000152587890625
+      }
+    ],
+    "mean_max_cosine_across_pairs": 0.09994495163361232
+  },
+  "artifacts": {
+    "model": "results/poker_bluff_judge_question_mistral7b_v03/sae_model.pt",
+    "feature_ranking_csv": "results/poker_bluff_judge_question_mistral7b_v03/sae_feature_ranking.csv",
+    "feature_examples_json": "results/poker_bluff_judge_question_mistral7b_v03/sae_feature_examples.json"
+  }
+}

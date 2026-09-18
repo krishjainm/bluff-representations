@@ -1,0 +1,17 @@
+{
+  "fingerprint": "64b57f74cf212afb0c3fc06fda60a4927e01ff0707cc844142e56a59627c63f7",
+  "spec": {
+    "activation_mode": "prompt_end",
+    "activation_site": "block",
+    "allow_response_leakage": false,
+    "decision_boundary_marker": "Answer:",
+    "layer_indices": null,
+    "max_sequence_length": 512,
+    "model_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "prompt_template": "{statement}\nAnswer:",
+    "prompt_template_id": "poker_bluff_judgement_judge_question_v1",
+    "subject_model": "meta-llama/Llama-3.1-8B-Instruct",
+    "tokenizer_revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "torch_dtype": "bfloat16"
+  }
+}

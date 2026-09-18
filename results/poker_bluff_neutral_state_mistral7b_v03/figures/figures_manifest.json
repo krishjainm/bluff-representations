@@ -1,0 +1,116 @@
+{
+  "experiment": {
+    "model": "mistralai/Mistral-7B-Instruct-v0.3",
+    "dataset": "data/derived/poker_bluff_neutral_state_v1.csv",
+    "dataset_sha256": "71ec323dc3af9d3d9df32fe0b0fec729a197e1b192cd0f4e1db16bc0990edf15",
+    "git_commit": "cd84f0aff01243afb2efda8550bd9d296a1ec67b",
+    "experiment_name": "poker_bluff_neutral_state_mistral7b_v03"
+  },
+  "source_artifacts": {
+    "probe": "results/poker_bluff_neutral_state_mistral7b_v03/probe_results.json",
+    "confound": "results/poker_bluff_neutral_state_mistral7b_v03/confound_results.json",
+    "sae": "results/poker_bluff_neutral_state_mistral7b_v03/sae_results.json",
+    "split": "results/poker_bluff_neutral_state_mistral7b_v03/split_manifest.json",
+    "metadata": "results/poker_bluff_neutral_state_mistral7b_v03/run_metadata.json"
+  },
+  "source_checksums": {
+    "probe": "a8075452101e2f4bc7bc23afb63d2bc00a6cbb55c570811676777893bfc0f534",
+    "confound": "eb3a74518b5f5d5576c8ccba91b5b487d7af1364a54005e77e9f98012d7b0b63",
+    "sae": "5de39cb9c7cbe28b561744c1f6e0c857fcb7194254a5016b4279e17e7229fbd9",
+    "split": "460f2ab203b2a9ee5c61df17c9d312ddf5045f9219a5093c46b27c6fb242a8a8",
+    "metadata": "ecd3cd0f715584e6c6746260c91ba7510dccb4c134503d0d96b32c39c347018b"
+  },
+  "figures_dir": "results/poker_bluff_neutral_state_mistral7b_v03/figures",
+  "figures": {
+    "layerwise_probe": {
+      "status": "ok",
+      "figure": "results/poker_bluff_neutral_state_mistral7b_v03/figures/layerwise_probe.png",
+      "source_data": "results/poker_bluff_neutral_state_mistral7b_v03/figures/layerwise_probe.csv",
+      "caption": "Validation AUROC per layer for mistralai/Mistral-7B-Instruct-v0.3, 5 seeds. Layer selection used the validation partition only; the frozen selection was evaluated once on test. Shaded band is +/-1 SD across seeds. Dataset data/derived/poker_bluff_neutral_state_v1.csv.",
+      "generated_from": "results/poker_bluff_neutral_state_mistral7b_v03/probe_results.json",
+      "source_sha256": "a8075452101e2f4bc7bc23afb63d2bc00a6cbb55c570811676777893bfc0f534",
+      "uncertainty_method": "standard deviation across probe-fitting seeds"
+    },
+    "learning_curve": {
+      "status": "ok",
+      "figure": "results/poker_bluff_neutral_state_mistral7b_v03/figures/learning_curve.png",
+      "source_data": "results/poker_bluff_neutral_state_mistral7b_v03/figures/learning_curve.csv",
+      "caption": "Test AUROC as a function of training-set size for mistralai/Mistral-7B-Instruct-v0.3. Subsampling is at group (hand) level with 5 independent draws per size, so a smaller training set is fewer hands rather than fewer rows from the same hands. Error bars are +/-1 SD across draws.",
+      "generated_from": "results/poker_bluff_neutral_state_mistral7b_v03/probe_results.json",
+      "source_sha256": "a8075452101e2f4bc7bc23afb63d2bc00a6cbb55c570811676777893bfc0f534",
+      "uncertainty_method": "standard deviation across independent subsamples"
+    },
+    "nuisance_baselines": {
+      "status": "ok",
+      "figure": "results/poker_bluff_neutral_state_mistral7b_v03/figures/nuisance_baselines.png",
+      "source_data": "results/poker_bluff_neutral_state_mistral7b_v03/figures/nuisance_baselines.csv",
+      "caption": "Test AUROC for the hidden-state probe and every baseline fitted on the same training partition. The response-text bar is a leakage diagnostic, not a result: on a dataset whose response column encodes the label it will sit near 1.0 by construction. A probe that does not clearly exceed the nuisance-metadata bar is not evidence of a deception representation.",
+      "generated_from": "results/poker_bluff_neutral_state_mistral7b_v03/probe_results.json",
+      "source_sha256": "a8075452101e2f4bc7bc23afb63d2bc00a6cbb55c570811676777893bfc0f534",
+      "uncertainty_method": "point estimates; see the layerwise figure for seed spread"
+    },
+    "confound_subsets": {
+      "status": "ok",
+      "figure": "results/poker_bluff_neutral_state_mistral7b_v03/figures/confound_subsets.png",
+      "source_data": "results/poker_bluff_neutral_state_mistral7b_v03/figures/confound_subsets.csv",
+      "caption": "Probe AUROC inside each nuisance-matched subset, at the layer selected on validation. Matching equalises label counts within every stratum, so a drop relative to the unmatched set is the portion of apparent performance that the nuisance variable explained. Controls that could not run: equity_matched: requires usable ['hand_strength']; bet_size_matched: requires usable ['pot_size']",
+      "generated_from": "results/poker_bluff_neutral_state_mistral7b_v03/confound_results.json",
+      "source_sha256": "eb3a74518b5f5d5576c8ccba91b5b487d7af1364a54005e77e9f98012d7b0b63",
+      "uncertainty_method": "grouped bootstrap 95% percentile CI"
+    },
+    "cross_scenario": {
+      "status": "not_run",
+      "figure": null,
+      "source_data": null,
+      "reason": "no cross-scenario transfer artifact exists. The generalization matrix (train on one context, evaluate on a held-out context, selecting only on source validation) is not implemented, so no figure can be drawn.",
+      "name": "cross_scenario"
+    },
+    "dose_response": {
+      "status": "not_run",
+      "figure": null,
+      "source_data": null,
+      "reason": "causal_results.json is absent (run run-interventions)",
+      "name": "dose_response"
+    },
+    "intervention_controls": {
+      "status": "not_run",
+      "figure": null,
+      "source_data": null,
+      "reason": "causal_results.json is absent",
+      "name": "intervention_controls"
+    },
+    "intervention_quality": {
+      "status": "not_run",
+      "figure": null,
+      "source_data": null,
+      "reason": "causal_results.json has no quality_controls",
+      "name": "intervention_quality"
+    },
+    "sae_diagnostics": {
+      "status": "ok",
+      "figure": "results/poker_bluff_neutral_state_mistral7b_v03/figures/sae_diagnostics.png",
+      "source_data": "results/poker_bluff_neutral_state_mistral7b_v03/figures/sae_diagnostics.csv",
+      "caption": "Diagnostics for the unsupervised SAE at layer 31, 32768 features (expansion 8.00x), topk activation. The SAE was trained without labels and frozen before these partitions were scored.",
+      "generated_from": "results/poker_bluff_neutral_state_mistral7b_v03/sae_results.json",
+      "source_sha256": "5de39cb9c7cbe28b561744c1f6e0c857fcb7194254a5016b4279e17e7229fbd9",
+      "uncertainty_method": "none: single frozen dictionary, deterministic evaluation"
+    },
+    "sae_features": {
+      "status": "ok",
+      "figure": "results/poker_bluff_neutral_state_mistral7b_v03/figures/sae_features.png",
+      "source_data": "results/poker_bluff_neutral_state_mistral7b_v03/figures/sae_features.csv",
+      "caption": "Each point is one SAE feature selected by label separability on train+validation and then scored once on test. Features far below the diagonal were selection artifacts. No feature is assigned a semantic name here: correlation with the bluff label does not make a feature a deception feature.",
+      "generated_from": "results/poker_bluff_neutral_state_mistral7b_v03/sae_results.json",
+      "source_sha256": "5de39cb9c7cbe28b561744c1f6e0c857fcb7194254a5016b4279e17e7229fbd9",
+      "uncertainty_method": "none: point estimates on the frozen test partition"
+    }
+  },
+  "n_generated": 6,
+  "n_not_run": 4,
+  "not_run": {
+    "cross_scenario": "no cross-scenario transfer artifact exists. The generalization matrix (train on one context, evaluate on a held-out context, selecting only on source validation) is not implemented, so no figure can be drawn.",
+    "dose_response": "causal_results.json is absent (run run-interventions)",
+    "intervention_controls": "causal_results.json is absent",
+    "intervention_quality": "causal_results.json has no quality_controls"
+  }
+}

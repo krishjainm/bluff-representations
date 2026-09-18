@@ -753,3 +753,50 @@ Tests: **208 passed**.
 **Nothing compute-heavy was run.** No model downloaded, no weights loaded, no API
 call, no GPU job. The only real computation performed to date is the model-free
 baselines and the split construction, both on CPU in under two minutes.
+
+### 2026-09-17 — Real run recovered from the A100 and committed
+
+**The A100 was never down.** An earlier check reported it unreachable; that check
+ran `ssh` with `BatchMode` and no identity while the agent held no keys. The box
+answers on `~/.ssh/lambda_key2.pem`, all three host keys still match
+`known_hosts`, and it had been up 2d 5h — idle and billing the whole time.
+Everything the run produced was intact.
+
+Recovered and committed (force-added past the `results/` and `data/activations/`
+ignore rules): 104 files / 24 MB of probe, confound, SAE, causal and figure
+artifacts for all four model × prompt-variant pairs, plus the four
+`extraction_spec.json` fingerprints. Left on the box: 89 GB of activations, four
+1.1 GB SAE checkpoints, and the 52 MB/34 MB per-sample manifests (checksummed in
+`docs/RUN_ARTIFACTS.md`). Added `scripts/summarize_run.py` so every reported
+number regenerates from artifacts rather than being transcribed.
+
+**The causal rerun completed and the template fix worked.** Baseline forced-choice
+mass 0.9802 (Llama) / 0.9782 (Mistral) against the 0.50 floor, `prompt_template`
+`"{statement}\nAnswer:"` recorded in both result files. The guard did not trip.
+
+Results are in `docs/RESULTS_SUMMARY.md`. Three things the paper has to say:
+
+1. Probe beats the nuisance-only baseline by **+0.013 to +0.029 AUROC** (0.9204
+   baseline), larger on PR-AUC. The **instruction confound is near zero for Llama
+   (+0.0008)** and small for Mistral (+0.0156) — the reviewer objection most
+   likely to sink the paper is now answered by measurement.
+2. The same hidden states decode **street at 1.000, position at 0.9998–1.000,
+   bet size at R² 0.96**. Residualising against game state drops the probe from
+   0.9363 to 0.7220 (Llama). Most of the probe's performance is game state.
+3. **The causal result is negative.** Steering along the learned direction does
+   not move the endpoint more than random, orthogonal, shuffled-label or nuisance
+   controls; the sign is inconsistent across models; no discrete choice flipped;
+   and `wrong_layer` produces a 10× larger effect than the experimental condition.
+   The dose grid is the likely cause — `mean_relative_magnitude` maxes out at
+   0.087 (Llama) and **0.011** (Mistral), so no meaningful dose was ever tested.
+
+Highest-value next experiment: re-run the causal sweep with strengths specified in
+**units of relative magnitude** (target 0.25–1.0), not raw alpha. That needs the
+89 GB of activations still on the instance, so do not terminate it before deciding.
+
+Also newly flagged: `n_seeds: 5` with seed std **exactly 0.0** on every metric.
+The splits are manifest-fixed and the probe is deterministic, so the seeds vary
+nothing. Fix or drop the seed language before submission.
+
+Tests: **224 passed**. No API calls, no new model downloads, no new GPU jobs — the
+only compute was rsync and local JSON summarisation.

@@ -1,0 +1,233 @@
+{
+  "note": "no activations and no model are involved in any number here",
+  "n_train": 31241,
+  "n_test": 8927,
+  "partition_summary": {
+    "test": {
+      "label_counts": {
+        "0": 7429,
+        "1": 1498
+      },
+      "n_groups": 8863,
+      "n_rows": 8927,
+      "positive_rate": 0.16780553377394422
+    },
+    "train": {
+      "label_counts": {
+        "0": 25998,
+        "1": 5243
+      },
+      "n_groups": 31017,
+      "n_rows": 31241,
+      "positive_rate": 0.1678243334080215
+    },
+    "validation": {
+      "label_counts": {
+        "0": 3714,
+        "1": 749
+      },
+      "n_groups": 4431,
+      "n_rows": 4463,
+      "positive_rate": 0.1678243334080215
+    }
+  },
+  "metadata_availability": {
+    "min_coverage": 0.95,
+    "columns": {
+      "action": {
+        "column": "action",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 1,
+        "kind": "categorical"
+      },
+      "street": {
+        "column": "street",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 3,
+        "kind": "categorical"
+      },
+      "position": {
+        "column": "position",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 6,
+        "kind": "categorical"
+      },
+      "made_hand": {
+        "column": "made_hand",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 9,
+        "kind": "categorical"
+      },
+      "board_texture": {
+        "column": "board_texture",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 3,
+        "kind": "categorical"
+      },
+      "board_paired": {
+        "column": "board_paired",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 2,
+        "kind": "categorical"
+      },
+      "bet_size": {
+        "column": "bet_size",
+        "present": true,
+        "coverage": 1.0,
+        "n_unique": 84,
+        "kind": "continuous"
+      }
+    },
+    "usable_columns": [
+      "action",
+      "bet_size",
+      "board_paired",
+      "board_texture",
+      "made_hand",
+      "position",
+      "street"
+    ],
+    "analyses": {
+      "bluff_vs_value": {
+        "available": true,
+        "requires": [
+          "action"
+        ]
+      },
+      "action_matched": {
+        "available": true,
+        "requires": [
+          "action"
+        ]
+      },
+      "street_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "street"
+        ]
+      },
+      "equity_matched": {
+        "available": false,
+        "requires": [
+          "action",
+          "hand_strength"
+        ],
+        "blocked_by": [
+          "hand_strength"
+        ]
+      },
+      "made_hand_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "made_hand"
+        ]
+      },
+      "bet_size_matched": {
+        "available": false,
+        "requires": [
+          "action",
+          "bet_size",
+          "pot_size"
+        ],
+        "blocked_by": [
+          "pot_size"
+        ]
+      },
+      "position_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "position"
+        ]
+      },
+      "board_matched": {
+        "available": true,
+        "requires": [
+          "action",
+          "board_texture"
+        ]
+      }
+    },
+    "unavailable_analyses": [
+      "bet_size_matched",
+      "equity_matched"
+    ]
+  },
+  "baselines": {
+    "majority_class_accuracy": 0.8321944662260558,
+    "prompt_text": {
+      "auroc": 0.7817055755769662,
+      "pr_auc": 0.37624544796106274,
+      "accuracy": 0.6974347485157387,
+      "balanced_accuracy": 0.7164191282278647,
+      "precision": 0.32489082969432315,
+      "recall": 0.7449933244325768,
+      "f1": 0.4524630042570444,
+      "mcc": 0.3324436866813885,
+      "ece": 0.26197813369893613,
+      "n": 8927,
+      "positive_rate": 0.16780553377394422,
+      "confusion_matrix": {
+        "tn": 5110,
+        "fp": 2319,
+        "fn": 382,
+        "tp": 1116
+      }
+    },
+    "response_text_diagnostic": {
+      "auroc": 1.0,
+      "pr_auc": 1.0,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "mcc": 1.0,
+      "ece": 0.000551753805986778,
+      "n": 8927,
+      "positive_rate": 0.16780553377394422,
+      "confusion_matrix": {
+        "tn": 7429,
+        "fp": 0,
+        "fn": 0,
+        "tp": 1498
+      }
+    },
+    "nuisance_only": {
+      "columns": [
+        "action",
+        "street",
+        "position",
+        "made_hand",
+        "board_texture",
+        "board_paired",
+        "bet_size"
+      ],
+      "auroc": 0.9204113583669957,
+      "pr_auc": 0.616569229873062,
+      "accuracy": 0.8512378178559427,
+      "balanced_accuracy": 0.8767782717783535,
+      "precision": 0.5330482115085536,
+      "recall": 0.9152202937249666,
+      "f1": 0.6737100737100737,
+      "mcc": 0.6217899119781134,
+      "ece": 0.1304569310590508,
+      "n": 8927,
+      "positive_rate": 0.16780553377394422,
+      "confusion_matrix": {
+        "tn": 6228,
+        "fp": 1201,
+        "fn": 127,
+        "tp": 1371
+      }
+    }
+  }
+}
