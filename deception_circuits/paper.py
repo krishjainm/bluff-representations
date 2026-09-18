@@ -117,7 +117,6 @@ class PaperConfig:
             raise ResearchIntegrityError(f"Missing config fields: {sorted(missing)}")
         return cls(**raw)
 
-
 def _sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
@@ -125,6 +124,40 @@ def _sha256(path: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+
+def _json_sha256(payload: dict[str, Any]) -> str:
+    """SHA-256 over canonical JSON for provenance fingerprints."""
+    encoded = json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _split_config_record(
+    df: pd.DataFrame,
+    config: PaperConfig,
+) -> dict[str, Any]:
+    """All config choices that determine the frozen data split."""
+    resolved_group_column = (
+        config.group_column
+        if config.group_column in df.columns
+        else "base_item_id"
+    )
+
+    return {
+        "seed": int(config.seed),
+        "split_strategy": str(config.split_strategy),
+        "requested_group_column": str(config.group_column),
+        "resolved_group_column": str(resolved_group_column),
+        "requested_stratify_columns": [
+            str(column)
+            for column in config.stratify_columns
+        ],
+        "test_fraction": float(config.test_fraction),
+        "validation_fraction": float(config.validation_fraction),
+    }
 
 def validate_dataset(path: str | Path) -> pd.DataFrame:
     """Load and strictly validate the canonical CSV schema."""
@@ -259,15 +292,22 @@ def make_split_manifest(df: pd.DataFrame, config: PaperConfig) -> dict[str, Any]
         train_local, val_local = next(inner.split(trainval, groups=trainval[group_col].astype(str)))
         train_idx, val_idx = trainval_idx[train_local], trainval_idx[val_local]
 
+    split_config = _split_config_record(df, config)
+
     result = {
-        "schema_version": 2, "dataset_sha256": _sha256(Path(config.dataset_path)),
-        "group_column": group_col, "seed": config.seed,
+        "schema_version": 2,
+        "dataset_sha256": _sha256(Path(config.dataset_path)),
+        "split_config": split_config,
+        "split_config_sha256": _json_sha256(split_config),
+        "group_column": group_col,
+        "seed": config.seed,
         "split_strategy": config.split_strategy,
         "stratify_columns": stratify_columns,
         "train": df.iloc[train_idx]["sample_id"].tolist(),
         "validation": df.iloc[val_idx]["sample_id"].tolist(),
         "test": df.iloc[test_idx]["sample_id"].tolist(),
     }
+
     result["partition_summary"] = summarize_partitions(df, result)
     assert_split_integrity(df, result)
     return result
@@ -353,9 +393,52 @@ def load_split_manifest(
             "manifest before continuing."
         )
 
+    recorded_split_config = manifest.get("split_config")
+    recorded_split_config_sha256 = manifest.get("split_config_sha256")
+
+    if not isinstance(recorded_split_config, dict):
+        raise ResearchIntegrityError(
+            "Split manifest is missing split_config provenance; recreate the split "
+            "manifest before continuing."
+        )
+
+    if not recorded_split_config_sha256:
+        raise ResearchIntegrityError(
+            "Split manifest is missing split_config_sha256; recreate the split "
+            "manifest before continuing."
+        )
+
+    actual_recorded_fingerprint = _json_sha256(recorded_split_config)
+
+    if actual_recorded_fingerprint != recorded_split_config_sha256:
+        raise ResearchIntegrityError(
+            "Split manifest split_config fingerprint does not match its recorded "
+            "configuration. The manifest may have been modified."
+        )
+
+    expected_split_config = _split_config_record(df, config)
+    expected_split_config_sha256 = _json_sha256(expected_split_config)
+
+    if recorded_split_config_sha256 != expected_split_config_sha256:
+        differences = {
+            key: {
+                "manifest": recorded_split_config.get(key),
+                "config": expected_split_config.get(key),
+            }
+            for key in sorted(
+                set(recorded_split_config) | set(expected_split_config)
+            )
+            if recorded_split_config.get(key)
+            != expected_split_config.get(key)
+        }
+
+        raise ResearchIntegrityError(
+            "Split manifest does not match the current split configuration: "
+            f"{differences}. Recreate the split manifest before continuing."
+        )
+
     assert_split_integrity(df, manifest)
     return manifest
-
 
 def binary_ece(probabilities: np.ndarray, labels: np.ndarray, n_bins: int = 15) -> float:
 

@@ -130,6 +130,73 @@ def test_load_split_manifest_rejects_dataset_changed_after_split(tmp_path):
     ):
         load_split_manifest(path, changed_df, config)
 
+def test_load_split_manifest_rejects_changed_split_seed(tmp_path):
+    """A frozen split must not be reused under a different configured seed."""
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+
+    original_config = _config(
+        csv,
+        tmp_path / "a",
+        tmp_path,
+        seed=2026,
+    )
+    manifest = make_split_manifest(df, original_config)
+
+    path = tmp_path / "split_manifest.json"
+    save_manifest(manifest, path)
+
+    changed_config = _config(
+        csv,
+        tmp_path / "a",
+        tmp_path,
+        seed=9999,
+    )
+
+    with pytest.raises(
+        ResearchIntegrityError,
+        match="split",
+    ):
+        load_split_manifest(
+            path,
+            df,
+            changed_config,
+        )
+
+
+def test_load_split_manifest_rejects_changed_split_strategy(tmp_path):
+    """A frozen split must not be reused under a different split strategy."""
+    csv = _dataset(tmp_path)
+    df = validate_dataset(csv)
+
+    original_config = _config(
+        csv,
+        tmp_path / "a",
+        tmp_path,
+        split_strategy="grouped_stratified",
+    )
+    manifest = make_split_manifest(df, original_config)
+
+    path = tmp_path / "split_manifest.json"
+    save_manifest(manifest, path)
+
+    changed_config = _config(
+        csv,
+        tmp_path / "a",
+        tmp_path,
+        split_strategy="grouped_random",
+    )
+
+    with pytest.raises(
+        ResearchIntegrityError,
+        match="split",
+    ):
+        load_split_manifest(
+            path,
+            df,
+            changed_config,
+        )
+
 def test_grouped_random_strategy_remains_available(tmp_path):
     csv = _dataset(tmp_path)
     df = validate_dataset(csv)
