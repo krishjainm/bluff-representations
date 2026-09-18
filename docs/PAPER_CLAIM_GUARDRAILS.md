@@ -49,6 +49,22 @@ Every source prompt asks "Is this a bluff?". Report both `judge_question` and
 `neutral_state` prompt variants, or state plainly that the result is
 instruction-confounded and that the neutral comparison was not run.
 
+## Dataset lineage limits independence claims
+
+The source examples are attributable to PokerBench, and the bluff labels are
+strongly supported as GPT-4o judgements produced with the recovered poker-analysis
+prompt. However, the exact PokerBench split/revision, final 44,631-row construction
+script, source hand/session identifiers, upstream action-generation procedure, and
+exact served GPT-4o snapshot are not recoverable.
+
+`split_group_id` therefore represents statement-derived grouping, not verified
+independent dealt hands. Do not describe the 44,311 groups as independent hands,
+sessions, or trajectories unless original source identifiers are recovered.
+
+Held-out results may be described as group-safe with respect to the documented
+statement-derived grouping. They must not be presented as proof of generalization
+across independently identified poker hands.
+
 ## The endpoint is the model's output, never the probe score
 
 `paper_causal.assert_endpoint_independence` refuses probe-derived endpoints, and

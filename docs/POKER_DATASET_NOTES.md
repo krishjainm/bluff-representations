@@ -21,10 +21,16 @@ recovers the nuisance metadata; `tests/test_poker_adapter.py` covers it.
 
 ## What it is
 
-44,631 rows, 44,311 distinct dealt hands, scenario `poker`, labels 37,141 / 7,490
-(**16.8% positive**, so PR-AUC matters more than AUROC). Metadata parses at 100%
-coverage: position, street, hole cards, board, amount faced, made-hand category,
-board texture.
+44,631 rows, 44,311 distinct statement-derived groups, scenario `poker`, labels
+37,141 / 7,490 (**16.8% positive**, so PR-AUC matters more than AUROC). Metadata
+parses at 100% coverage: position, street, hole cards, board, amount faced,
+made-hand category, board texture.
+
+The 44,311 groups are derived from exact statement text, not original PokerBench
+hand/session identifiers. The source hand identifiers and the construction script
+for this 44,631-row dataset are unavailable, so these groups must not be described
+as 44,311 independently dealt hands. Exact duplicate rows also remain in the
+dataset.
 
 Each row is a 6-max No-Limit Hold'em game summary followed by:
 
@@ -118,6 +124,36 @@ action-matched, which is convenient: `bluff_vs_value` and `action_matched` are
 trivially satisfied, and an action-only baseline is at chance by construction.
 The confound that remains is game state, not action type.
 
+## 5. Recovered source and label provenance
+
+Git history and the committed intermediate artifacts establish substantial, but
+not complete, provenance for this dataset.
+
+### Source examples
+
+The underlying poker examples come from `RZ412/PokerBench` on Hugging Face.
+Evidence includes the repository's dataset-integration documentation, the
+PokerBench 6-max No-Limit Hold'em prompt format, the solver action vocabulary,
+and source-style indices spanning the PokerBench range.
+
+The exact PokerBench split and dataset revision are not recoverable. No committed
+script downloads the source dataset.
+
+The historical GPT-4o judge consumed an intermediate file named
+`llm_raise.jsonl` containing `index`, `instruction`, `output`, and `llm_move`.
+That file is not present on any recovered branch, and the model or procedure that
+generated `llm_move` is not recoverable.
+
+### Bluff-judgement prompt
+
+All 44,631 shipped statements reproduce the GPT-4o judge prompt structure:
+
+```text
+{instruction before "Now it is your turn"}
+
+The player decided to: Raise.
+Is this a bluff? Reply with only 'Yes' or 'No'.
+
 ## What is still missing
 
 - **Equity.** `made_hand_rank` is made-hand *category*, not equity: a strong draw
@@ -127,11 +163,18 @@ The confound that remains is game state, not action type.
 - **Pot size.** Only the amount *faced* is parsed reliably. Reconstructing the
   pot needs a full action-sequence replay including calls, which is not
   implemented, so `bet_size_matched` reports `not_run`.
-- **Label provenance.** The upstream construction rule and source of the bluff
-  label are not documented anywhere in the repository. Before publication, state
-  who or what produced this label and how. The adapter records
-  `label_source: dataset_provided_bluff_label`, which is a placeholder for a real
-  answer, not an answer.
+- **Exact source lineage.** PokerBench is recoverable as the source dataset, but
+  the exact split, dataset revision, source hand/session identifiers, and final
+  44,631-row selection script are not.
+- **Upstream action-generation lineage.** The historical judge input
+  `llm_raise.jsonl` and the model/procedure that generated its `llm_move` field
+  are not recoverable.
+- **Exact GPT-4o snapshot.** The recovered judge used the bare model name
+  `gpt-4o`, not a dated snapshot, so the exact served model version cannot be
+  reproduced.
+- **Independent-hand identity.** `split_group_id` groups exact statement-derived
+  items. Without original hand/session identifiers, it does not prove that
+  different groups correspond to independent dealt hands.
 
 ## Honest framing this data can support
 
