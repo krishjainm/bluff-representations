@@ -610,3 +610,71 @@ def test_transformers_runner_honors_model_tokenizer_revision_and_dtype(monkeypat
     assert runner.model_revision == "model-sha"
     assert runner.tokenizer_revision == "tokenizer-sha"
     assert runner.torch_dtype == "bfloat16"
+
+def test_transformers_hidden_at_reads_the_hooked_block_output(monkeypatch):
+    """Patching donors must come from the same site interventions modify."""
+    import torch
+
+    from deception_circuits.paper_causal import (
+        TransformersInterventionRunner,
+    )
+
+    block_output = torch.tensor(
+        [[[1.0, 2.0, 3.0]]],
+    )
+    normalized_output = torch.tensor(
+        [[[10.0, 20.0, 30.0]]],
+    )
+
+    class FakeHandle:
+        def remove(self):
+            pass
+
+    class FakeModule:
+        def __init__(self):
+            self.hook = None
+
+        def register_forward_hook(self, hook):
+            self.hook = hook
+            return FakeHandle()
+
+    module = FakeModule()
+
+    monkeypatch.setattr(
+        "deception_circuits.activation_sites.resolve_hook_module",
+        lambda model, layer, site: module,
+    )
+
+    runner = TransformersInterventionRunner.__new__(
+        TransformersInterventionRunner
+    )
+    runner.model = object()
+    runner.site = "block"
+
+    def fake_run(prompt, intervention):
+        if module.hook is not None:
+            module.hook(
+                module,
+                (),
+                block_output,
+            )
+
+        return types.SimpleNamespace(
+            hidden_states=(
+                torch.zeros_like(block_output),
+                normalized_output,
+            )
+        )
+
+    runner._run = fake_run
+
+    actual = runner.hidden_at(
+        "test prompt",
+        0,
+        site="block",
+    )
+
+    np.testing.assert_allclose(
+        actual,
+        block_output[0, -1, :].numpy(),
+    )

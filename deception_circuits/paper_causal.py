@@ -776,10 +776,35 @@ class TransformersInterventionRunner:
                 for option, token_id in self._first_token_ids(options).items()}
 
     def hidden_at(self, prompt: str, layer: int, *, site: str = "block") -> np.ndarray:
-        outputs = self._run(prompt, Intervention())
-        # hidden_states[0] is the embedding output, so index i is block i.
-        return outputs.hidden_states[layer + 1][0, -1, :].float().cpu().numpy()
+        from .activation_sites import resolve_hook_module
 
+        captured: dict[str, Any] = {}
+
+        def hook(module, inputs, output):
+            hidden = output[0] if isinstance(output, tuple) else output
+            captured["hidden"] = hidden.detach()
+
+        module = resolve_hook_module(self.model, int(layer), site)
+        handle = module.register_forward_hook(hook)
+
+        try:
+            self._run(prompt, Intervention())
+        finally:
+            handle.remove()
+
+        if "hidden" not in captured:
+            raise ResearchIntegrityError(
+                f"Failed to capture hidden state at layer {layer}, site {site!r}"
+            )
+
+        hidden = captured["hidden"]
+
+        if hidden.ndim != 3:
+            raise ResearchIntegrityError(
+                f"Expected hooked hidden state [batch, seq, hidden], got shape {tuple(hidden.shape)}"
+            )
+
+        return hidden[0, -1, :].float().cpu().numpy()
 
 __all__ = [
     "Condition", "Direction", "ForcedChoiceEndpoint", "Intervention", "InterventionRunner",

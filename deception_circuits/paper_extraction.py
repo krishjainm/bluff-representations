@@ -738,11 +738,10 @@ class TransformersHiddenStateProvider:
     @torch.no_grad()
     def hidden_states(self, token_ids: Sequence[int], site: str) -> torch.Tensor:
         ids = torch.tensor([list(token_ids)], dtype=torch.long, device=self.device)
-        if site in ("block", "residual_stream", "resid", "residual"):
-            out = self.model(input_ids=ids, output_hidden_states=True)
-            # hidden_states[0] is the embedding output; drop it so index i is block i.
-            return torch.stack(list(out.hidden_states[1:]), dim=0).squeeze(1)
-        return self._hooked_hidden_states(ids, site)
+        normalized_site = site.lower().strip()
+        if normalized_site in ("block", "residual_stream", "resid", "residual"):
+            normalized_site = "block"
+        return self._hooked_hidden_states(ids, normalized_site)
 
     @torch.no_grad()
     def _hooked_hidden_states(self, ids: torch.Tensor, site: str) -> torch.Tensor:

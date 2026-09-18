@@ -15,10 +15,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from deception_circuits.paper import (PaperConfig, ResearchIntegrityError,
                                       load_activations, validate_dataset)
-from deception_circuits.paper_extraction import (ExtractionSpec, audit_activation_provenance,
-                                                 extract_sample, load_activation_layer_indices,
-                                                 render_extraction_prompt, run_extraction,
-                                                 verify_extraction_manifest)
+from deception_circuits.paper_extraction import (
+    ExtractionSpec,
+    TransformersHiddenStateProvider,
+    audit_activation_provenance,
+    extract_sample,
+    load_activation_layer_indices,
+    render_extraction_prompt,
+    run_extraction,
+    verify_extraction_manifest,
+)
 
 from _stubs import StubHiddenStateProvider as StubProvider
 
@@ -457,3 +463,47 @@ def test_spec_fingerprint_changes_with_every_scientific_choice():
     ]
     fingerprints = {base.fingerprint()} | {v.fingerprint() for v in variants}
     assert len(fingerprints) == len(variants) + 1
+
+def test_block_extraction_uses_decoder_block_hooks_not_model_hidden_states(monkeypatch):
+    """Block/residual extraction must capture the real block output.
+
+    For Llama, output_hidden_states replaces the final recorded block output
+    with the post-final-RMSNorm last_hidden_state. The paper intervention site
+    is the decoder block output before that norm, so extraction must use the
+    same module hook.
+    """
+    provider = TransformersHiddenStateProvider.__new__(
+        TransformersHiddenStateProvider
+    )
+    provider.device = "cpu"
+
+    expected = torch.arange(
+        24,
+        dtype=torch.float32,
+    ).reshape(2, 3, 4)
+
+    class ForbiddenModel:
+        def __call__(self, *args, **kwargs):
+            raise AssertionError(
+                "block extraction must not use model output_hidden_states"
+            )
+
+    provider.model = ForbiddenModel()
+
+    def fake_hooked_hidden_states(ids, site):
+        assert site == "block"
+        assert ids.shape == (1, 3)
+        return expected
+
+    monkeypatch.setattr(
+        provider,
+        "_hooked_hidden_states",
+        fake_hooked_hidden_states,
+    )
+
+    actual = provider.hidden_states(
+        [10, 20, 30],
+        "residual_stream",
+    )
+
+    assert torch.equal(actual, expected)
