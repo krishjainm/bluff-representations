@@ -8,9 +8,19 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-from .paper import (PaperConfig, audit_notes, audit_run, load_activations,
-                    load_split_manifest, make_split_manifest, run_probe_experiment,
-                    save_manifest, validate_dataset, write_run_metadata)
+from .paper import (
+    PaperConfig,
+    audit_notes,
+    audit_run,
+    load_activations,
+    load_split_manifest,
+    make_split_manifest,
+    run_probe_experiment,
+    save_manifest,
+    validate_dataset,
+    verify_probe_result_provenance,
+    write_run_metadata,
+)
 from .paper_extraction import (ExtractionSpec, load_activation_layer_indices,
                                run_extraction)
 COMMANDS = (
@@ -50,6 +60,24 @@ def _build_parser() -> argparse.ArgumentParser:
 def _manifest_path(config: PaperConfig, out: Path) -> Path:
     return Path(config.split_manifest_path) if config.split_manifest_path else out / "split_manifest.json"
 
+
+def _load_verified_probe_results(
+    path: Path,
+    split_manifest: dict,
+    config: PaperConfig,
+) -> dict:
+    """Load probe results only if they belong to the current upstream run."""
+    result = json.loads(
+        path.read_text(
+            encoding="utf-8",
+        )
+    )
+    verify_probe_result_provenance(
+        result,
+        split_manifest,
+        config,
+    )
+    return result
 
 def main() -> None:
     args = _build_parser().parse_args()
@@ -117,7 +145,12 @@ def main() -> None:
                 "Run train-probes first: the confound suite reuses the validation-selected "
                 "layer rather than choosing its own, so it cannot leak test information."
             )
-        runs = json.loads(probe_results.read_text())["runs"]
+        probe_result = _load_verified_probe_results(
+            probe_results,
+            split_manifest,
+            config,
+        )
+        runs = probe_result["runs"]
 
         # Confound analyses index the stored activation tensor, so they must use
         # the activation-axis index rather than the physical transformer layer.
@@ -259,7 +292,12 @@ def main() -> None:
         split_manifest = load_split_manifest(path, df, config)
 
         if probe_results.is_file():
-            runs = json.loads(probe_results.read_text())["runs"]
+            probe_result = _load_verified_probe_results(
+                probe_results,
+                split_manifest,
+                config,
+            )
+            runs = probe_result["runs"]
             layer_indices = [
                 int(r.get("selected_layer_index", r["selected_layer"]))
                 for r in runs
@@ -324,7 +362,12 @@ def main() -> None:
             raise SystemExit("Set intervention_strengths in the config (a dose-response grid).")
 
         split_manifest = load_split_manifest(path, df, config)
-        runs = json.loads(probe_results.read_text())["runs"]
+        probe_result = _load_verified_probe_results(
+            probe_results,
+            split_manifest,
+            config,
+        )
+        runs = probe_result["runs"]
 
         activation_layer_indices = load_activation_layer_indices(config.activation_dir)
 

@@ -70,6 +70,178 @@ def test_paper_probe_is_group_safe_and_validation_selected(tmp_path):
     assert result["runs"][0]["test_auroc_grouped_ci"]["valid_resamples"] > 0
     assert "prompt_text" in result["baselines"]
 
+def test_audit_rejects_probe_results_from_changed_probe_config(tmp_path):
+    """Probe results must be bound to the exact config that produced them."""
+    csv, activation_dir = _fixture(tmp_path)
+
+    original_config = _config(
+        csv,
+        activation_dir,
+        tmp_path,
+        nuisance_columns=(),
+        learning_curve_sizes=(),
+        intervention_strengths=(),
+        sae_config={},
+    )
+
+    df = validate_dataset(csv)
+    manifest = make_split_manifest(df, original_config)
+
+    out = Path(original_config.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    (out / "split_manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (out / "resolved_config.yaml").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+    (out / "run_metadata.json").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+
+    probe_result = run_probe_experiment(
+        df,
+        load_activations(
+            df,
+            activation_dir,
+            original_config,
+        ),
+        manifest,
+        original_config,
+    )
+
+    (out / "probe_results.json").write_text(
+        json.dumps(probe_result, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    assert audit_run(
+        out,
+        df,
+        original_config,
+    ) == []
+
+    changed_config = _config(
+        csv,
+        activation_dir,
+        tmp_path,
+        nuisance_columns=(),
+        learning_curve_sizes=(),
+        intervention_strengths=(),
+        sae_config={},
+        probe_c=0.125,
+    )
+
+    failures = audit_run(
+        out,
+        df,
+        changed_config,
+    )
+
+    assert any(
+        "probe result provenance" in failure.lower()
+        for failure in failures
+    )
+
+def test_audit_rejects_probe_results_from_changed_split(tmp_path):
+    """Probe results must be bound to the exact split manifest used to train them."""
+    csv, activation_dir = _fixture(tmp_path)
+
+    original_config = _config(
+        csv,
+        activation_dir,
+        tmp_path,
+        nuisance_columns=(),
+        learning_curve_sizes=(),
+        intervention_strengths=(),
+        sae_config={},
+        seed=2026,
+    )
+
+    df = validate_dataset(csv)
+    original_manifest = make_split_manifest(
+        df,
+        original_config,
+    )
+
+    out = Path(original_config.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    (out / "split_manifest.json").write_text(
+        json.dumps(original_manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (out / "resolved_config.yaml").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+    (out / "run_metadata.json").write_text(
+        "{}\n",
+        encoding="utf-8",
+    )
+
+    probe_result = run_probe_experiment(
+        df,
+        load_activations(
+            df,
+            activation_dir,
+            original_config,
+        ),
+        original_manifest,
+        original_config,
+    )
+
+    (out / "probe_results.json").write_text(
+        json.dumps(probe_result, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    assert audit_run(
+        out,
+        df,
+        original_config,
+    ) == []
+
+    changed_split_config = _config(
+        csv,
+        activation_dir,
+        tmp_path,
+        nuisance_columns=(),
+        learning_curve_sizes=(),
+        intervention_strengths=(),
+        sae_config={},
+        seed=9999,
+    )
+
+    changed_manifest = make_split_manifest(
+        df,
+        changed_split_config,
+    )
+
+    assert (
+        changed_manifest["train"]
+        != original_manifest["train"]
+    )
+
+    (out / "split_manifest.json").write_text(
+        json.dumps(changed_manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    failures = audit_run(
+        out,
+        df,
+        original_config,
+    )
+
+    assert any(
+        "probe result provenance" in failure.lower()
+        for failure in failures
+    )
 
 def test_missing_activation_file_is_a_hard_error(tmp_path):
     csv, activation_dir = _fixture(tmp_path)

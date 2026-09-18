@@ -440,6 +440,145 @@ def load_split_manifest(
     assert_split_integrity(df, manifest)
     return manifest
 
+
+def _probe_config_record(config: PaperConfig) -> dict[str, Any]:
+    """Config choices that can change probe or embedded baseline results."""
+    return {
+        "seed": int(config.seed),
+        "probe_type": str(config.probe_type),
+        "probe_c": float(config.probe_c),
+        "n_seeds": int(config.n_seeds),
+        "bootstrap_resamples": int(config.bootstrap_resamples),
+        "learning_curve_sizes": [
+            int(value)
+            for value in config.learning_curve_sizes
+        ],
+        "learning_curve_subsamples": int(
+            config.learning_curve_subsamples
+        ),
+        "nuisance_columns": [
+            str(column)
+            for column in config.nuisance_columns
+        ],
+    }
+
+
+def _activation_provenance_record(
+    activation_dir: str | Path,
+) -> dict[str, Any]:
+    """Canonical identity of the activation artifacts used by the probe."""
+    from .paper_extraction import load_extraction_manifest
+
+    manifest = load_extraction_manifest(activation_dir)
+    samples = []
+
+    for entry in manifest.get("samples") or []:
+        sid = str(entry.get("sample_id"))
+
+        artifact_sha256 = entry.get("artifact_sha256")
+        prompt_sha256 = entry.get("prompt_sha256")
+
+        if not artifact_sha256:
+            raise ResearchIntegrityError(
+                f"Activation record for sample_id={sid} is missing "
+                "artifact_sha256; re-extract or resume extraction before "
+                "producing paper results."
+            )
+
+        if not prompt_sha256:
+            raise ResearchIntegrityError(
+                f"Activation record for sample_id={sid} is missing "
+                "prompt_sha256; re-extract or resume extraction before "
+                "producing paper results."
+            )
+
+        samples.append({
+            "sample_id": sid,
+            "artifact_sha256": str(artifact_sha256),
+            "prompt_sha256": str(prompt_sha256),
+            "shape": entry.get("shape"),
+            "layer_indices": entry.get("layer_indices"),
+        })
+
+    if not samples:
+        raise ResearchIntegrityError(
+            "Activation manifest contains no sample records."
+        )
+
+    samples.sort(key=lambda entry: entry["sample_id"])
+
+    return {
+        "schema_version": manifest.get("schema_version"),
+        "spec_fingerprint": manifest.get("spec_fingerprint"),
+        "activation_shape": manifest.get("activation_shape"),
+        "n_samples": len(samples),
+        "samples": samples,
+    }
+
+
+def build_probe_result_provenance(
+    manifest: dict[str, Any],
+    config: PaperConfig,
+) -> dict[str, Any]:
+    """Bind probe results to their exact dataset, split, activations, and config."""
+    probe_config = _probe_config_record(config)
+    activation_provenance = _activation_provenance_record(
+        config.activation_dir
+    )
+
+    return {
+        "schema_version": 1,
+        "dataset_sha256": _sha256(Path(config.dataset_path)),
+        "split_manifest_sha256": _json_sha256(manifest),
+        "activation_provenance_sha256": _json_sha256(
+            activation_provenance
+        ),
+        "probe_config_sha256": _json_sha256(probe_config),
+        "probe_config": probe_config,
+    }
+
+
+def verify_probe_result_provenance(
+    result: dict[str, Any],
+    manifest: dict[str, Any],
+    config: PaperConfig,
+) -> None:
+    """Reject probe results that do not belong to the current upstream run."""
+    recorded = result.get("provenance")
+
+    if not isinstance(recorded, dict):
+        raise ResearchIntegrityError(
+            "probe_results.json is missing provenance"
+        )
+
+    expected = build_probe_result_provenance(
+        manifest,
+        config,
+    )
+
+    keys = (
+        "dataset_sha256",
+        "split_manifest_sha256",
+        "activation_provenance_sha256",
+        "probe_config_sha256",
+    )
+
+    differences = {
+        key: {
+            "recorded": recorded.get(key),
+            "expected": expected.get(key),
+        }
+        for key in keys
+        if recorded.get(key) != expected.get(key)
+    }
+
+    if differences:
+        raise ResearchIntegrityError(
+            "probe_results.json does not match the current upstream "
+            f"artifacts/configuration: {differences}"
+        )
+
+
 def binary_ece(probabilities: np.ndarray, labels: np.ndarray, n_bins: int = 15) -> float:
 
     """Equal-width expected calibration error for binary labels.
@@ -654,6 +793,10 @@ def run_probe_experiment(
         )
 
     result = {
+        "provenance": build_probe_result_provenance(
+            manifest,
+            config,
+        ),
         "selection_partition": "validation",
         "test_partition_used_for_selection": False,
         "activation_layer_indices": [int(layer) for layer in layer_indices],
@@ -919,7 +1062,29 @@ def audit_run(output_dir: str | Path, df: pd.DataFrame | None = None, config: Pa
     if not manifest_file.is_file():
         failures.append(f"missing split manifest: {manifest_file}")
     if not failures:
-        result = json.loads((root / "probe_results.json").read_text())
+        result = json.loads(
+            (root / "probe_results.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        manifest = json.loads(
+            manifest_file.read_text(
+                encoding="utf-8"
+            )
+        )
+
+        if config is not None:
+            try:
+                verify_probe_result_provenance(
+                    result,
+                    manifest,
+                    config,
+                )
+            except ResearchIntegrityError as exc:
+                failures.append(
+                    f"probe result provenance failure: {exc}"
+                )
+
         if result.get("selection_partition") != "validation" or result.get("test_partition_used_for_selection"):
             failures.append("probe selection is not validation-only")
         if config is not None and len(result.get("runs", [])) != config.n_seeds:
