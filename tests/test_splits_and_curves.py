@@ -294,3 +294,38 @@ def test_fixing_the_layer_does_not_change_which_groups_are_drawn(tmp_path):
                 if p.get("status") == "ok" for r in p["replicates"]]
 
     assert draws(fixed) == draws(searched)
+
+
+def test_bfloat16_activation_archives_load_losslessly(tmp_path: Path) -> None:
+    """Activations may be stored as bfloat16 to halve transfer/disk size.
+
+    The extraction forward pass runs in bfloat16, so an fp32 archive carries
+    only bf16 precision and the recast is lossless. numpy has no bfloat16, so
+    the loader must upcast before crossing into numpy rather than raising.
+    """
+    import torch
+
+    csv, activation_dir = _fixture(tmp_path)
+    df = pd.read_csv(csv)
+    config = _config(csv, activation_dir, tmp_path)
+
+    fp32 = load_activations(df, activation_dir, config)
+
+    bf16_dir = tmp_path / "activations_bf16"
+    bf16_dir.mkdir()
+    for path in Path(activation_dir).iterdir():
+        if path.suffix == ".pt":
+            tensor = torch.load(path, map_location="cpu", weights_only=True)
+            torch.save(tensor.to(torch.bfloat16), bf16_dir / path.name)
+        else:
+            (bf16_dir / path.name).write_bytes(path.read_bytes())
+
+    bf16_config = _config(csv, bf16_dir, tmp_path)
+    recovered = load_activations(df, bf16_dir, bf16_config)
+
+    assert recovered.dtype == np.float32
+    assert recovered.shape == fp32.shape
+    # Round-tripping a bf16-precision value through bf16 changes nothing; the
+    # stub provider emits fp32, so compare against its own bf16 projection.
+    expected = torch.from_numpy(fp32).to(torch.bfloat16).to(torch.float32).numpy()
+    np.testing.assert_array_equal(recovered, expected)

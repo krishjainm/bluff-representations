@@ -180,7 +180,11 @@ def load_activations(
         value = torch.load(path, map_location="cpu", weights_only=True)
         if not isinstance(value, torch.Tensor):
             raise ResearchIntegrityError(f"{path} is not a tensor")
-        arr = value.detach().cpu().numpy()
+        # Activations extracted from a bfloat16 forward pass are stored as
+        # bfloat16 (lossless: the fp32 form carried only bf16 precision).
+        # numpy has no bfloat16, so upcast before crossing into numpy. This is
+        # a no-op for float32 archives written by earlier runs.
+        arr = value.detach().cpu().float().numpy()
         if arr.ndim != 2 or not np.isfinite(arr).all():
             raise ResearchIntegrityError(f"{path} must be a finite [layers, hidden] tensor")
         if shape is None:
