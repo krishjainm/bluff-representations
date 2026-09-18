@@ -260,7 +260,6 @@ class HiddenStateProvider(Protocol):
     def hidden_states(self, token_ids: Sequence[int], site: str) -> torch.Tensor:
         """Return a ``[layers, seq, hidden]`` tensor for one unpadded sequence."""
 
-
 def _row_value(row: pd.Series, column: str) -> str:
     if column not in row.index:
         raise ResearchIntegrityError(f"Dataset row is missing required column {column!r}")
@@ -270,7 +269,21 @@ def _row_value(row: pd.Series, column: str) -> str:
     return str(value)
 
 
+def _render_prompt_text(row: pd.Series, spec: ExtractionSpec) -> str:
+    """Reconstruct the exact prompt text whose hash binds an activation to a row."""
+    statement = _row_value(row, "statement")
+    if spec.is_pre_decision:
+        return spec.prompt_template.format(statement=statement)
+
+    response = _row_value(row, "response")
+    return spec.prompt_template.format(
+        statement=statement,
+        response=response,
+    )
+
+
 def render_extraction_prompt(
+
     row: pd.Series, spec: ExtractionSpec, provider: HiddenStateProvider
 ) -> PromptRendering:
     """Render the prompt for ``row`` and resolve the exact read position.
@@ -287,19 +300,17 @@ def render_extraction_prompt(
     position itself (the final token) is unaffected, and the pre-decision modes do
     not depend on this at all because they never concatenate a response.
     """
-    statement = _row_value(row, "statement")
+    prompt = _render_prompt_text(row, spec)
 
     if spec.is_pre_decision:
-        prompt = spec.prompt_template.format(statement=statement)
         prompt_tokens = provider.encode(prompt)
         if not prompt_tokens:
             raise ResearchIntegrityError("Rendered pre-decision prompt tokenized to zero tokens")
         full_tokens = prompt_tokens
         prompt_len = len(prompt_tokens)
     else:
-        response = _row_value(row, "response")
+        statement = _row_value(row, "statement")
         prompt_only = spec.prompt_template.split("{response}")[0].format(statement=statement)
-        prompt = spec.prompt_template.format(statement=statement, response=response)
         prompt_len = len(provider.encode(prompt_only))
         full_tokens = provider.encode(prompt)
         if prompt_len >= len(full_tokens):
@@ -626,14 +637,35 @@ def verify_extraction_manifest(
     recorded = ExtractionSpec.from_dict(manifest["spec"])
     manifest_ids = [str(entry["sample_id"]) for entry in manifest["samples"]]
     dataset_ids = [str(sid) for sid in df["sample_id"]]
-    missing = [sid for sid in dataset_ids if sid not in set(manifest_ids)]
+
+    if len(manifest_ids) != len(set(manifest_ids)):
+        raise ResearchIntegrityError(
+            "Activation manifest contains duplicate sample_id records"
+        )
+
+    manifest_id_set = set(manifest_ids)
+    dataset_id_set = set(dataset_ids)
+
+    missing = [sid for sid in dataset_ids if sid not in manifest_id_set]
+    extra = [sid for sid in manifest_ids if sid not in dataset_id_set]
+
     if missing:
         raise ResearchIntegrityError(
             f"Activation manifest is missing {len(missing)} dataset samples "
             f"(first: {missing[:5]}); extraction is incomplete"
         )
+
+    if extra:
+        raise ResearchIntegrityError(
+            f"Activation manifest contains {len(extra)} samples not present in the "
+            f"current dataset (first: {extra[:5]}); refusing stale activation reuse"
+        )
+
     if recorded.fingerprint() != manifest.get("spec_fingerprint"):
-        raise ResearchIntegrityError("Activation manifest fingerprint does not match its recorded spec")
+        raise ResearchIntegrityError(
+            "Activation manifest fingerprint does not match its recorded spec"
+        )
+
     stale = [
         e["sample_id"]
         for e in manifest["samples"]
@@ -643,6 +675,38 @@ def verify_extraction_manifest(
         raise ResearchIntegrityError(
             f"{len(stale)} activation records were produced under a different spec "
             f"(first: {stale[:5]})"
+        )
+
+    rows_by_id = {
+        str(row["sample_id"]): row
+        for _, row in df.iterrows()
+    }
+
+    stale_prompts: list[str] = []
+
+    for entry in manifest["samples"]:
+        sid = str(entry["sample_id"])
+        recorded_prompt_sha256 = entry.get("prompt_sha256")
+
+        if not recorded_prompt_sha256:
+            raise ResearchIntegrityError(
+                f"Activation record for sample_id={sid} is missing prompt_sha256"
+            )
+
+        current_prompt = _render_prompt_text(
+            rows_by_id[sid],
+            recorded,
+        )
+        current_prompt_sha256 = _sha256_text(current_prompt)
+
+        if current_prompt_sha256 != recorded_prompt_sha256:
+            stale_prompts.append(sid)
+
+    if stale_prompts:
+        raise ResearchIntegrityError(
+            f"{len(stale_prompts)} activation records have prompt hashes that do not "
+            f"match the current dataset (first: {stale_prompts[:5]}). "
+            "The activations are stale and must be re-extracted."
         )
 
     root = Path(activation_dir)

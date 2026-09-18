@@ -390,6 +390,68 @@ def test_load_activations_rejects_tampered_artifact_hash(tmp_path):
     with pytest.raises(ResearchIntegrityError, match="artifact hash mismatch"):
         load_activations(df, acts, _config(csv, acts, tmp_path))
 
+def test_load_activations_rejects_stale_prompt_under_same_sample_id(tmp_path):
+    """Analysis must reject activations if the current prompt changed under the same ID."""
+    csv = _dataset(tmp_path, n_groups=3)
+    df = validate_dataset(csv)
+    acts = tmp_path / "acts"
+
+    run_extraction(
+        df,
+        _spec(),
+        acts,
+        StubProvider(),
+    )
+
+    changed = df.copy()
+    changed.loc[0, "statement"] = (
+        str(changed.loc[0, "statement"])
+        + " CHANGED_AFTER_EXTRACTION"
+    )
+
+    with pytest.raises(
+        ResearchIntegrityError,
+        match="prompt",
+    ):
+        load_activations(
+            changed,
+            acts,
+            _config(csv, acts, tmp_path),
+        )
+
+def test_load_activations_rejects_reassigned_prompts_under_same_ids(tmp_path):
+    """Positional IDs must not authorize activations after rows are reassigned."""
+    csv = _dataset(tmp_path, n_groups=3)
+    df = validate_dataset(csv)
+    acts = tmp_path / "acts"
+
+    run_extraction(
+        df,
+        _spec(),
+        acts,
+        StubProvider(),
+    )
+
+    reassigned = df.copy()
+
+    first_statement = str(reassigned.loc[0, "statement"])
+    second_statement = str(reassigned.loc[2, "statement"])
+
+    assert first_statement != second_statement
+
+    reassigned.loc[0, "statement"] = second_statement
+    reassigned.loc[2, "statement"] = first_statement
+
+    with pytest.raises(
+        ResearchIntegrityError,
+        match="prompt hashes",
+    ):
+        load_activations(
+            reassigned,
+            acts,
+            _config(csv, acts, tmp_path),
+        )
+
 def test_spec_from_paper_config_maps_residual_stream_and_layer_selection(tmp_path):
     csv = _dataset(tmp_path, n_groups=3)
     acts = tmp_path / "acts"
