@@ -18,12 +18,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from _stubs import StubInterventionRunner
 
 from deception_circuits.paper import PaperConfig, ResearchIntegrityError
-from deception_circuits.paper_causal import (Condition, Direction, ForcedChoiceEndpoint,
-                                             Intervention, assert_endpoint_independence,
-                                             build_direction_set, default_conditions,
-                                             nuisance_condition, orthogonal_direction,
-                                             paired_bootstrap_effect, run_causal_suite,
-                                             score_generation_quality, summarize_quality)
+from deception_circuits.paper_causal import (
+    Condition,
+    Direction,
+    ForcedChoiceEndpoint,
+    Intervention,
+    assert_endpoint_independence,
+    build_direction_set,
+    default_conditions,
+    nuisance_condition,
+    orthogonal_direction,
+    paired_bootstrap_effect,
+    run_causal_suite,
+    score_generation_quality,
+    select_causal_eval_subset,
+    summarize_quality,
+)
 
 DIM = 16
 N_LAYERS = 8
@@ -71,6 +81,117 @@ def _config(**overrides) -> PaperConfig:
     base.update(overrides)
     return PaperConfig(**base)
 
+def test_causal_eval_sampling_is_seeded_and_row_order_independent():
+    rows = []
+
+    for group in range(12):
+        for member in range(2):
+            rows.append({
+                "sample_id": f"g{group}-r{member}",
+                "base_item_id": f"g{group}",
+                "split_group_id": f"g{group}",
+                "statement": f"group {group} row {member}",
+                "response": "Yes",
+                "label": group % 2,
+                "scenario": "poker",
+            })
+
+    df = pd.DataFrame(rows)
+
+    manifest = {
+        "group_column": "split_group_id",
+        "train": [],
+        "validation": [],
+        "test": df["sample_id"].tolist(),
+    }
+
+    first, first_report = select_causal_eval_subset(
+        df,
+        manifest,
+        max_rows=10,
+        seed=2026,
+    )
+
+    shuffled = df.sample(
+        frac=1.0,
+        random_state=99,
+    ).reset_index(drop=True)
+
+    second, second_report = select_causal_eval_subset(
+        shuffled,
+        manifest,
+        max_rows=10,
+        seed=2026,
+    )
+
+    assert set(first["sample_id"]) == set(second["sample_id"])
+    assert first_report["selected_sample_ids_sha256"] == (
+        second_report["selected_sample_ids_sha256"]
+    )
+    assert first_report["sampling_policy"] == (
+        "seeded group-aware random sampling"
+    )
+
+
+def test_causal_eval_sampling_never_splits_a_group():
+    rows = []
+
+    group_sizes = {
+        "a": 3,
+        "b": 2,
+        "c": 4,
+        "d": 1,
+        "e": 2,
+    }
+
+    for group, size in group_sizes.items():
+        for member in range(size):
+            rows.append({
+                "sample_id": f"{group}-{member}",
+                "base_item_id": group,
+                "split_group_id": group,
+                "statement": f"group {group} row {member}",
+                "response": "Yes",
+                "label": member % 2,
+                "scenario": "poker",
+            })
+
+    df = pd.DataFrame(rows)
+
+    manifest = {
+        "group_column": "split_group_id",
+        "train": [],
+        "validation": [],
+        "test": df["sample_id"].tolist(),
+    }
+
+    selected, report = select_causal_eval_subset(
+        df,
+        manifest,
+        max_rows=7,
+        seed=2026,
+    )
+
+    selected_ids = set(selected["sample_id"].astype(str))
+
+    for group in group_sizes:
+        group_ids = set(
+            df.loc[
+                df["split_group_id"] == group,
+                "sample_id",
+            ].astype(str)
+        )
+
+        overlap = selected_ids & group_ids
+
+        assert overlap in (
+            set(),
+            group_ids,
+        )
+
+    assert len(selected) <= 7
+    assert report["n_selected_rows"] == len(selected)
+    assert report["n_selected_groups"] == selected["split_group_id"].nunique()
 
 # --- non-circularity ------------------------------------------------------------
 

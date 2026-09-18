@@ -19,6 +19,7 @@ testable without loading weights.
 """
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from typing import Any, Protocol, Sequence, runtime_checkable
 
@@ -128,6 +129,135 @@ def orthogonal_direction(reference: np.ndarray, *, seed: int) -> np.ndarray:
     candidate = candidate - candidate.dot(reference) * reference
     return _unit(candidate)
 
+def select_causal_eval_subset(
+    df: pd.DataFrame,
+    manifest: dict[str, Any],
+    *,
+    max_rows: int | None,
+    seed: int,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Select a deterministic, group-safe subset of the frozen test partition."""
+    group_column = manifest.get(
+        "group_column",
+        "base_item_id",
+    )
+
+    if group_column not in df.columns:
+        raise ResearchIntegrityError(
+            f"Causal evaluation group column {group_column!r} is absent "
+            "from the dataset"
+        )
+
+    test_ids = {
+        str(sample_id)
+        for sample_id in manifest["test"]
+    }
+
+    work = df[
+        df["sample_id"].astype(str).isin(test_ids)
+    ].copy()
+
+    if work.empty:
+        raise ResearchIntegrityError(
+            "Causal evaluation test partition contains no rows"
+        )
+
+    work["_group_key"] = work[group_column].astype(str)
+    work["_sample_key"] = work["sample_id"].astype(str)
+
+    all_groups = sorted(
+        work["_group_key"].unique().tolist()
+    )
+
+    if max_rows is None or max_rows <= 0 or len(work) <= max_rows:
+        selected_groups = all_groups
+        sampling_policy = "all held-out groups"
+    else:
+        rng = np.random.default_rng(seed)
+
+        group_order = [
+            all_groups[index]
+            for index in rng.permutation(len(all_groups))
+        ]
+
+        selected_groups: list[str] = []
+        selected_rows = 0
+
+        for group in group_order:
+            group_size = int(
+                (work["_group_key"] == group).sum()
+            )
+
+            if selected_rows + group_size > max_rows:
+                continue
+
+            selected_groups.append(group)
+            selected_rows += group_size
+
+            if selected_rows == max_rows:
+                break
+
+        if not selected_groups:
+            smallest_group = int(
+                work.groupby("_group_key").size().min()
+            )
+            raise ResearchIntegrityError(
+                "causal_eval_size is too small to include even one complete "
+                f"held-out group: max_rows={max_rows}, "
+                f"smallest_group={smallest_group}"
+            )
+
+        sampling_policy = "seeded group-aware random sampling"
+
+    pieces: list[pd.DataFrame] = []
+
+    for group in selected_groups:
+        group_rows = work[
+            work["_group_key"] == group
+        ].sort_values(
+            "_sample_key",
+            kind="stable",
+        )
+
+        pieces.append(group_rows)
+
+    selected = pd.concat(
+        pieces,
+        ignore_index=True,
+    )
+
+    ordered_sample_ids = selected[
+        "_sample_key"
+    ].astype(str).tolist()
+
+    selected_sample_ids_sha256 = hashlib.sha256(
+        "|".join(ordered_sample_ids).encode("utf-8")
+    ).hexdigest()
+
+    report = {
+        "sampling_policy": sampling_policy,
+        "seed": int(seed),
+        "group_column": str(group_column),
+        "max_rows": (
+            None
+            if max_rows is None
+            else int(max_rows)
+        ),
+        "n_held_out_rows": int(len(work)),
+        "n_held_out_groups": int(len(all_groups)),
+        "n_selected_rows": int(len(selected)),
+        "n_selected_groups": int(len(selected_groups)),
+        "selected_sample_ids_sha256": selected_sample_ids_sha256,
+    }
+
+    selected = selected.drop(
+        columns=[
+            "_group_key",
+            "_sample_key",
+        ]
+    )
+
+    return selected.reset_index(drop=True), report
 
 def build_direction_set(
     activations: np.ndarray,
@@ -807,11 +937,22 @@ class TransformersInterventionRunner:
         return hidden[0, -1, :].float().cpu().numpy()
 
 __all__ = [
-    "Condition", "Direction", "ForcedChoiceEndpoint", "Intervention", "InterventionRunner",
-    "PROBE_DERIVED_ENDPOINTS", "assert_endpoint_independence", "build_direction_set",
-    "choose_wrong_layer_offset", "default_conditions", "nuisance_condition",
+    "Condition",
+    "Direction",
+    "ForcedChoiceEndpoint",
+    "Intervention",
+    "InterventionRunner",
+    "PROBE_DERIVED_ENDPOINTS",
+    "assert_endpoint_independence",
+    "build_direction_set",
+    "choose_wrong_layer_offset",
+    "default_conditions",
+    "nuisance_condition",
     "orthogonal_direction",
-    "TransformersInterventionRunner", "paired_bootstrap_effect", "run_causal_suite",
+    "paired_bootstrap_effect",
+    "run_causal_suite",
     "score_generation_quality",
+    "select_causal_eval_subset",
     "summarize_quality",
+    "TransformersInterventionRunner",
 ]

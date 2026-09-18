@@ -344,9 +344,15 @@ def main() -> None:
         return
 
     if args.command == "run-interventions":
-        from .paper_causal import (ForcedChoiceEndpoint, build_direction_set,
-                                   choose_wrong_layer_offset, default_conditions,
-                                   nuisance_condition, run_causal_suite)
+        from .paper_causal import (
+            ForcedChoiceEndpoint,
+            build_direction_set,
+            choose_wrong_layer_offset,
+            default_conditions,
+            nuisance_condition,
+            run_causal_suite,
+            select_causal_eval_subset,
+        )
 
         path = _manifest_path(config, out)
         probe_results = out / "probe_results.json"
@@ -390,11 +396,12 @@ def main() -> None:
             layer_index = max(set(selected_indices), key=selected_indices.count)
             physical_layer = activation_layer_indices[layer_index]
 
-        held_out = df[df.sample_id.isin(set(split_manifest["test"]))]
-
-        if config.causal_eval_size and len(held_out) > config.causal_eval_size:
-            # Deterministic head of the held-out set; size is configurable, not hardcoded.
-            held_out = held_out.head(config.causal_eval_size)
+        held_out, causal_sampling = select_causal_eval_subset(
+            df,
+            split_manifest,
+            max_rows=config.causal_eval_size,
+            seed=config.seed,
+        )
 
         if not args.confirm_model_load:
             raise SystemExit(
@@ -473,6 +480,7 @@ def main() -> None:
 
         result["activation_layer_index"] = layer_index
         result["physical_layer"] = physical_layer
+        result["evaluation_sample"] = causal_sampling
         # Per-row records go to CSV; the JSON keeps summaries only.
         records = result.pop("records")
         pd.DataFrame(records).to_csv(out / "intervention_records.csv", index=False)
