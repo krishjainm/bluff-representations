@@ -60,17 +60,14 @@ probe_type: logistic_regression
 # --- not_run: true equity needs a solver and pot size is not reconstructed.
 nuisance_columns: [action, street, position, made_hand, board_texture, board_paired, bet_size]
 
-# --- SAE: 4096 hidden x 8 = 32,768 features. Drop to 16,384 if memory is tight.
-sae_config:
-  n_features: 32768
-  activation: topk
-  k: 64
-  epochs: 60
-  batch_size: 1024
-  learning_rate: 0.0003
-  seed: 0
+# --- SAE: DELIBERATELY DISABLED for this variant.
+# The neutral-state run exists to test whether probe decodability survives
+# removal of the explicit bluff question. SAE analysis is reported only for
+# the primary explicit-judgement condition, so the audit must not require a
+# neutral SAE artifact.
+sae_config: {}
 sae_top_n_features: 10
-sae_stability_seeds: [0, 1, 2]
+sae_stability_seeds: []
 
 # --- causal intervention: DELIBERATELY DISABLED for this variant.
 # The neutral prompt asks the model nothing, so there is no forced choice to
