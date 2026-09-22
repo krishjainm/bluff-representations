@@ -1,0 +1,5 @@
+comparison,auroc,kind
+hidden-state probe,0.9350695709323744,probe
+prompt text only,0.7824993831232958,baseline
+nuisance metadata only,0.9204113583669957,baseline
+"response text (diagnostic, not a claim)",1.0,diagnostic

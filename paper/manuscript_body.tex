@@ -85,6 +85,15 @@ The explicit judgement prompt selects physical layer 30 in all five probe runs. 
 
 The near-equality of these two results is important. Removing the question ``Is this a bluff?'' changes test AUROC by less than 0.001. Thus, the strong linear signal does not depend on the subject model being explicitly instructed to classify bluffing. At the same time, this comparison does not by itself establish a bluff-specific representation, because the underlying game state remains strongly correlated with the label.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\linewidth]{figures/judge/layerwise_probe.png}
+\hfill
+\includegraphics[width=0.49\linewidth]{figures/neutral/layerwise_probe.png}
+\caption{Layerwise probe performance for the explicit bluff-judgement prompt (left) and question-stripped neutral-state prompt (right). Physical transformer layers are shown on the horizontal axis. Layer selection uses validation AUROC only, with the frozen selection evaluated on the held-out test partition.}
+\label{fig:layerwise-probes}
+\end{figure}
+
 \begin{table}[t]
 \centering
 \caption{Strict held-out probe results for the two prompt variants. Layer selection uses validation AUROC only.}
@@ -100,6 +109,15 @@ Neutral state & 31 & 0.9402 & 0.9351 & 0.7825 \\
 
 The learning curves show a smooth increase with data. For the explicit judgement variant, mean test AUROC across five group-level subsamples is 0.7624 at 500 groups, 0.8772 at 2,000, 0.9168 at 8,000, 0.9300 at 20,000, and 0.9359 at 31,000. The neutral-state variant follows the same qualitative pattern: 0.7100, 0.8495, 0.9069, 0.9281, and 0.9346 at the corresponding sizes. This scaling behavior suggests that the late-layer signal is not an artifact of one large training condition.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\linewidth]{figures/judge/learning_curve.png}
+\hfill
+\includegraphics[width=0.49\linewidth]{figures/neutral/learning_curve.png}
+\caption{Learning curves for the explicit judgement variant (left) and neutral-state variant (right). Training-set size is measured in statement-derived groups, not verified independent poker hands. Each point summarizes five independent group-level subsamples evaluated on the same frozen test partition.}
+\label{fig:learning-curves}
+\end{figure}
+
 \subsection{Poker-state variables explain a large fraction of the signal}
 The nuisance-only baseline reaches test AUROC 0.9204 and PR-AUC 0.6166, close to the 0.9360 hidden-state probe. This establishes that ordinary poker-state information alone predicts the operational bluff label very strongly.
 
@@ -111,6 +129,15 @@ The hidden states also make the nuisance variables themselves highly decodable. 
 
 The appropriate conclusion is therefore not that layer 30 contains a clean deception variable. Rather, the late hidden state contains information predictive of the bluff label, much of which is entangled with ordinary strategic state.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\linewidth]{figures/judge/nuisance_baselines.png}
+\hfill
+\includegraphics[width=0.49\linewidth]{figures/judge/confound_subsets.png}
+\caption{Poker-state confound diagnostics for the explicit judgement variant. Left: the hidden-state probe alongside text and nuisance baselines. Right: matched-subset probe performance under available nuisance controls. Together these results show that ordinary poker-state information accounts for a substantial fraction of the apparent bluff-label signal.}
+\label{fig:confounds}
+\end{figure}
+
 \subsection{Interventions causally modulate bluff judgement, but specificity is limited}
 The forced-choice endpoint is well behaved at baseline: approximately 97.8\% of output probability mass lies on the allowed Yes/No options. Steering along the two orientations of the learned probe direction produces a signed, approximately dose-dependent response. At strength 4, one orientation changes $P(\text{Yes})$ by approximately $-0.019$, while reversing the direction changes it by approximately $+0.018$.
 
@@ -120,12 +147,37 @@ A wrong-layer intervention at strength 4 produces a very large apparent endpoint
 
 The intervention result should therefore be described as \emph{causal modulation without demonstrated target specificity}. The probe direction affects the model's bluff judgement, but the present controls do not show that this direction is uniquely associated with bluffing rather than one of several high-impact directions in the local activation geometry.
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\linewidth]{figures/judge/dose_response.png}
+\hfill
+\includegraphics[width=0.49\linewidth]{figures/judge/intervention_controls.png}
+\caption{Controlled inference-time interventions on the model's forced-choice bluff judgement. Left: dose response across intervention strengths. Right: comparison with matched control directions. Control effects comparable to the probe-direction effect limit claims of direction specificity.}
+\label{fig:interventions}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.72\linewidth]{figures/judge/intervention_quality.png}
+\caption{Intervention quality diagnostics. Valid Yes/No probability mass remains high for the intended intervention and most controls, while the strongest wrong-layer intervention is degenerate and is not interpreted as evidence of targeted causal control.}
+\label{fig:intervention-quality}
+\end{figure}
+
 \subsection{The SAE reconstructs well but does not yield stable bluff features}
 The TopK SAE at layer 30 explains 95.17\% of test activation variance while maintaining mean L0 of 64 active features per example, as specified by the TopK architecture. The test dead-feature fraction is 0.756, so most dictionary features do not activate on the test partition.
 
 More importantly for interpretation, dictionary stability across training seeds is low: mean maximum cosine similarity across seed pairs is approximately 0.101. The ten features selected by train-plus-validation bluff-label separability also generalize only modestly to the held-out test set, with single-feature AUROCs roughly spanning 0.42 to 0.59 and a best observed value around 0.593.
 
 These results do not support the earlier interpretation that the SAE exposes stable, interpretable ``deception features.'' They support a narrower statement: a sparse dictionary can reconstruct the selected-layer activation space accurately, but individual coordinates are unstable and weak as standalone bluff-label predictors under the current training setup.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.49\linewidth]{figures/judge/sae_diagnostics.png}
+\hfill
+\includegraphics[width=0.49\linewidth]{figures/judge/sae_features.png}
+\caption{Sparse-autoencoder results at the selected explicit-judgement layer. Left: reconstruction, sparsity, dead-feature, and stability diagnostics. Right: held-out performance of features selected using training plus validation data. Reconstruction is strong, but individual feature-level bluff associations are modest and unstable.}
+\label{fig:sae}
+\end{figure}
 
 \section{Discussion}
 The most robust finding is not the existence of a single deception direction. It is the coexistence of three facts. First, bluff labels are highly linearly decodable from late Llama-3.1-8B hidden states. Second, the same hidden states strongly encode ordinary poker-state variables that nearly predict the label on their own. Third, interventions along a probe-derived direction can change the model's bluff judgement, but several matched control directions can also produce substantial changes.
@@ -190,14 +242,5 @@ The primary SAE uses 32,768 TopK features with $k=64$. On test it explains 0.951
 \section{Reproducibility and Artifact Traceability}
 Every strict run records the dataset checksum, split manifest, model revision, tokenizer revision, activation-layer mapping, prompt hashes, artifact hashes, and environment metadata. Figure generation consumes only real result artifacts, writes a source-data CSV for each figure, and records source-artifact checksums in a figure manifest. The strict audit passes for both the explicit judgement and neutral-state real runs. Controls that require unavailable metadata are represented explicitly as \texttt{not\_run} with a reason rather than silently omitted or approximated.
 
-% Suggested figure mapping from the strict pipeline:
-% Figure 1: judge figures/layerwise_probe.png + neutral figures/layerwise_probe.png
-% Figure 2: judge figures/learning_curve.png + neutral figures/learning_curve.png
-% Figure 3: judge figures/nuisance_baselines.png + judge figures/confound_subsets.png
-% Figure 4: judge figures/dose_response.png + judge figures/intervention_controls.png
-% Figure 5: judge figures/intervention_quality.png
-% Figure 6: judge figures/sae_diagnostics.png + judge figures/sae_features.png
-%
-% IMPORTANT: the current figure_learning_curve implementation labels statement-derived groups
-% as "poker hands" in one axis/caption. Change that wording to "statement-derived groups" before
-% using the generated figure in the manuscript, because original hand identifiers are not available.
+% Publication figures above are generated from the strict real-run artifacts.
+% Their source CSVs and figure manifests are stored alongside the PNG files.
