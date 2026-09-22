@@ -384,7 +384,7 @@ def figure_learning_curve(
                 label=f"mean test AUROC ({replicates} independent subsamples)")
     ax.axhline(0.5, color=INK_SECONDARY, linewidth=1, linestyle=":", label="chance (AUROC 0.5)")
     ax.set_ylim(0.0, 1.02)
-    _style_axes(ax, xlabel="training-set size (independent groups / poker hands)",
+    _style_axes(ax, xlabel="training-set size (statement-derived groups)",
                 ylabel="test AUROC")
     ax.legend(frameon=False, fontsize=8, labelcolor=INK_SECONDARY)
     _finish(fig, ax, "Learning curve over independent group-level subsamples",
@@ -398,8 +398,8 @@ def figure_learning_curve(
     return _save(fig, data, "learning_curve", figures_dir,
                  caption=(f"Test AUROC as a function of training-set size for {context.model}. "
                           f"Subsampling is at group (hand) level with {replicates} independent "
-                          f"draws per size, so a smaller training set is fewer hands rather than "
-                          f"fewer rows from the same hands. Error bars are +/-1 SD across draws."),
+                          f"so a smaller training set is fewer statement-derived groups rather than "
+                          f"fewer rows from the same groups. Error bars are +/-1 SD across draws."),
                  source=artifacts["present"].get("probe"),
                  checksum=artifacts["checksums"].get("probe"),
                  uncertainty="standard deviation across independent subsamples")
