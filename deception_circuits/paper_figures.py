@@ -397,8 +397,8 @@ def figure_learning_curve(
                          "test_auroc_max": [p["test_auroc_range"][1] for p in points]})
     return _save(fig, data, "learning_curve", figures_dir,
                  caption=(f"Test AUROC as a function of training-set size for {context.model}. "
-                          f"Subsampling is at group (hand) level with {replicates} independent "
-                          f"so a smaller training set is fewer statement-derived groups rather than "
+                          f"Subsampling is at the statement-derived group level with {replicates} independent "
+                          f"draws, so a smaller training set is fewer statement-derived groups rather than "
                           f"fewer rows from the same groups. Error bars are +/-1 SD across draws."),
                  source=artifacts["present"].get("probe"),
                  checksum=artifacts["checksums"].get("probe"),
